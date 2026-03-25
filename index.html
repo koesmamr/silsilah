@@ -110,13 +110,13 @@
                 </h1>
                 <p class="text-sm text-gray-500 mt-2">Hak Akses Anda: <span id="roleBadge" class="font-semibold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">Guest (Publik)</span></p>
             </div>
-            <!-- Tombol Tambah Anggota diubah perilakunya -->
+            <!-- Tombol diganti menjadi informasi -->
             <button onclick="handleTopAddButton()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-md font-medium transition flex items-center transform hover:-translate-y-0.5">
-                <i class="fa-solid fa-plus mr-2"></i> Tambah Anggota
+                <i class="fa-solid fa-info-circle mr-2"></i> Cara Tambah
             </button>
         </div>
 
-        <!-- Proposals Alert -->
+        <!-- Proposals Alert (Only visible to Owner / Super Admin) -->
         <div id="proposalContainer" class="hidden mb-6 animate-fade-in">
             <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-sm">
                 <div class="flex">
@@ -144,13 +144,12 @@
     <div id="memberModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto border border-gray-100">
             <div class="flex justify-between items-center mb-5 border-b pb-3">
-                <h2 class="text-xl font-bold text-gray-800" id="modalTitle">Buat Silsilah Baru</h2>
+                <h2 class="text-xl font-bold text-gray-800" id="modalTitle">Tambah Anggota Keluarga</h2>
                 <button onclick="closeFormModal()" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
             
             <form id="familyForm" onsubmit="submitForm(event)">
                 <div class="space-y-4">
-                    <!-- Hanya muncul jika Silsilah Baru -->
                     <div id="privasiDiv" class="hidden bg-blue-50 p-3 rounded-lg border border-blue-100 mb-2">
                         <label class="block text-sm font-bold text-blue-800 mb-1"><i class="fas fa-shield-alt mr-1"></i> Pengaturan Privasi Silsilah</label>
                         <p class="text-xs text-blue-600 mb-2">Pilih visibilitas silsilah yang Anda buat ini.</p>
@@ -165,23 +164,24 @@
                         <input type="text" id="nama" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50">
                     </div>
                     
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700">Jenis Kelamin</label>
-                        <select id="jenisKelamin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50">
-                            <option value="L">Laki-laki (L)</option>
-                            <option value="P">Perempuan (P)</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Hanya muncul jika Klik dari Node -->
-                    <div id="hubunganDiv" class="hidden">
-                        <label class="block text-sm font-bold text-gray-700">Hubungan Keluarga</label>
-                        <select id="hubungan" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50 font-medium text-blue-700">
-                            <option value="Anak">Anak</option>
-                            <option value="Pasangan">Pasangan (Suami/Istri)</option>
-                            <option value="Ayah">Ayah</option>
-                            <option value="Ibu">Ibu</option>
-                        </select>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700">Jenis Kelamin</label>
+                            <select id="jenisKelamin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50">
+                                <option value="L">Laki-laki (L)</option>
+                                <option value="P">Perempuan (P)</option>
+                            </select>
+                        </div>
+                        <div id="hubunganDiv">
+                            <label class="block text-sm font-bold text-gray-700">Hubungan</label>
+                            <select id="hubungan" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50 font-medium text-blue-700">
+                                <option value="Kepala Keluarga">Kepala Keluarga (Root)</option>
+                                <option value="Anak">Anak</option>
+                                <option value="Pasangan">Pasangan (Suami/Istri)</option>
+                                <option value="Ayah">Ayah</option>
+                                <option value="Ibu">Ibu</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div>
@@ -206,6 +206,7 @@
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2ZQ9o6hSnAkkCrDPscsYBc8jFD4rFmPCyDRmGkwCyKJolejDglJFqCdnna9ElpKnAqg/exec';
         const SUPER_ADMIN = "syamsul18782@gmail.com";
         
+        // Deteksi Parameter URL
         const urlParams = new URLSearchParams(window.location.search);
         let targetEmail = urlParams.get('email') || ""; 
         
@@ -221,7 +222,7 @@
         let isOwner = false;
         let familyDataCache = [];
         let chart;
-        let activeReferenceNode = null; // Menyimpan Node yang di-klik
+        let activeReferenceNode = null; // Node Referensi Klik
 
         // --- FUNGSI HELPER UNTUK API CALL ---
         async function apiCall(payload) {
@@ -234,6 +235,7 @@
                 const data = await response.json();
                 return data;
             } catch (error) {
+                console.error(error);
                 throw new Error("Gagal terhubung ke Server Database.");
             }
         }
@@ -302,7 +304,6 @@
         function kembaliKeBeranda() {
             targetEmail = "";
             sessionStorage.removeItem('familyTree_targetEmail');
-            
             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             window.history.pushState({path:newUrl}, '', newUrl);
 
@@ -313,24 +314,22 @@
         }
 
         function handleTopAddButton() {
-            // Jika kosong, langsung buka modal
             if (familyDataCache.length === 0) {
                 openFormModal();
             } else {
-                // Jika sudah ada silsilah, edukasi user untuk klik '+' di node
                 Swal.fire({
                     icon: 'info',
                     title: 'Cara Menambahkan Keluarga',
-                    html: '<p class="text-sm">Silakan klik tombol tambah biru <b>(+)</b> yang ada di bagian bawah foto anggota keluarga di dalam bagan silsilah.</p>',
+                    html: '<p class="text-sm">Silakan klik tombol tambah <b>(+)</b> yang berada di bawah foto orang terkait (untuk menambah Ayah/Ibu/Pasangan/Anak Tunggal), atau klik tombol tambah berlambang anak <b>(🧒)</b> di tengah garis yang menyatukan Suami dan Istri untuk menambahkan anak mereka.</p>',
                     confirmButtonText: 'Mengerti'
                 });
             }
         }
 
-        // Fungsi Buka Form (Bisa via Node atau langsung jika baru)
-        function openFormModal(refNodeId = null, refNodeName = null) { 
+        // FUNGSI BUKA MODAL YANG CERDAS
+        function openFormModal(refNodeId = null, refNodeName = null, forceHubungan = null) { 
             if (!currentUser) {
-                Swal.fire({ title: 'Akses Terbatas', text: 'Anda harus Login terlebih dahulu untuk menambah silsilah.', icon: 'info', confirmButtonText: 'Login Sekarang' }).then((result) => {
+                Swal.fire({ title: 'Akses Terbatas', text: 'Anda harus Login terlebih dahulu untuk menambah atau mengubah data silsilah.', icon: 'info', confirmButtonText: 'Login Sekarang' }).then((result) => {
                     if(result.isConfirmed) openLoginModal();
                 });
                 return;
@@ -349,6 +348,7 @@
             
             const divPrivasi = document.getElementById('privasiDiv');
             const divHubungan = document.getElementById('hubunganDiv');
+            const selectHubungan = document.getElementById('hubungan');
             const modalTitle = document.getElementById('modalTitle');
             const btnSubmit = document.getElementById('btnSubmit');
 
@@ -358,19 +358,36 @@
                 btnSubmit.innerHTML = '<i class="fa-solid fa-save mr-2"></i> Simpan Data';
             }
 
+            // Reset Disabled Options
+            Array.from(selectHubungan.options).forEach(opt => opt.disabled = false);
+
             if (familyDataCache.length === 0) {
-                // Silsilah Baru
+                // Konfigurasi Orang Pertama di Silsilah
                 activeReferenceNode = null;
                 divPrivasi.classList.remove('hidden');
-                divHubungan.classList.add('hidden');
+                divHubungan.classList.add('hidden'); // Sembunyikan Hubungan
                 modalTitle.innerText = "Buat Silsilah Baru";
+                selectHubungan.value = 'Kepala Keluarga';
             } else {
-                // Menambahkan Kerabat
+                // Menambah Kerabat dari Node yang Diklik
                 activeReferenceNode = { id: refNodeId, name: refNodeName };
                 divPrivasi.classList.add('hidden');
-                divHubungan.classList.remove('hidden');
+                divHubungan.classList.remove('hidden'); // Tampilkan Hubungan
                 modalTitle.innerText = "Tambah Kerabat untuk " + refNodeName;
-                document.getElementById('hubungan').value = "Anak"; // Default
+
+                if (forceHubungan) {
+                    selectHubungan.value = forceHubungan;
+                    // Kunci opsi lain jika di-*force* (misalnya tombol "Tambah Anak dari Pasangan")
+                    Array.from(selectHubungan.options).forEach(opt => {
+                        if (opt.value !== forceHubungan) opt.disabled = true;
+                    });
+                } else {
+                    selectHubungan.value = "Pasangan"; // Default jika dari personal node
+                    // Jangan izinkan pilih "Kepala Keluarga" lagi
+                    Array.from(selectHubungan.options).forEach(opt => {
+                        if (opt.value === 'Kepala Keluarga') opt.disabled = true;
+                    });
+                }
             }
         }
         
@@ -441,7 +458,7 @@
             }
         };
 
-        // --- LAYAR SELAMAT DATANG (HERO SECTION) ---
+        // --- LAYAR SELAMAT DATANG ---
         function tampilkanWelcomeScreen() {
             document.getElementById('loadingChart').style.display = 'none';
             document.getElementById('treeContainer').style.display = 'block';
@@ -528,7 +545,8 @@
                 } else {
                     Swal.fire('Error', res.message, 'error');
                 }
-            }).catch(err => {
+            })
+            .catch(err => {
                 Swal.fire('Server Error', err.message, 'error');
             });
         }
@@ -563,7 +581,9 @@
             });
         }
 
-        // --- RENDER D3.JS ORG CHART (DENGAN LOGIKA SIDE-BY-SIDE SPOUSE) ---
+        // ==============================================================
+        // RENDER D3.JS ORG CHART (DENGAN LOGIKA HUBUNGAN SUAMI-ISTRI)
+        // ==============================================================
         function renderTree(data) {
             document.getElementById('loadingChart').style.display = 'none';
             document.getElementById('treeContainer').style.display = 'block';
@@ -573,36 +593,34 @@
                     <div class="flex flex-col h-full items-center justify-center text-gray-500 py-16">
                         <div class="bg-gray-100 p-6 rounded-full mb-4"><i class="fas fa-user-plus text-5xl text-gray-400"></i></div>
                         <h2 class="text-xl font-bold text-gray-700 mb-2">Silsilah Masih Kosong</h2>
-                        <p class="text-sm text-center max-w-sm mb-6">Silakan buat anggota keluarga pertama.</p>
+                        <p class="text-sm text-center max-w-sm mb-6">Belum ada anggota yang ditambahkan.</p>
                         <button onclick="openFormModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-md font-medium transition">Mulai Silsilah Baru</button>
                     </div>`;
                 return;
             }
 
-            // 1. Pisahkan Spouses (Pasangan) dan Main Nodes
+            // Pisahkan Pasangan (Spouses) dan Orang Utama (Main Nodes)
             const spouses = data.filter(d => d.Hubungan === 'Pasangan' && d.ID_Spouse);
             const mainNodes = data.filter(d => d.Hubungan !== 'Pasangan' || !d.ID_Spouse);
 
             const existingIds = new Set(mainNodes.map(d => d.ID_Anggota));
             let rootNodesCount = 0;
 
-            // 2. Susun Data Node Utama
             const chartData = mainNodes.map(d => {
                 let parentId = d.ID_Parent;
                 if (!parentId || !existingIds.has(parentId)) { parentId = ""; rootNodesCount++; }
                 
-                // Cari pasangan untuk node ini
+                // Cari apakah orang ini punya pasangan
                 const mySpouses = spouses.filter(s => s.ID_Spouse === d.ID_Anggota);
 
                 return {
                     id: d.ID_Anggota, parentId: parentId, name: d.Nama, positionName: d.Hubungan,
                     imageUrl: d.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(d.Nama) + "&background=random",
-                    gender: d.Jenis_Kelamin,
-                    spouses: mySpouses // Sisipkan array pasangan
+                    gender: d.Jenis_Kelamin, spouses: mySpouses
                 };
             });
 
-            // Handle Pasangan yang tidak ketemu Main Node nya (Orphan spouses error)
+            // Handle Error Jika ada Pasangan yang Utama/Parentnya tidak ditemukan
             const matchedSpouseIds = new Set(chartData.flatMap(d => d.spouses.map(s => s.ID_Anggota)));
             spouses.forEach(s => {
                 if (!matchedSpouseIds.has(s.ID_Anggota)) {
@@ -615,11 +633,11 @@
                 }
             });
 
-            // 3. Fallback jika ada multiple roots (Keluarga Besar)
+            // Atasi "Multiple Roots Error" dengan membuat VIRTUAL ROOT
             if (rootNodesCount > 1) {
                 chartData.forEach(d => { if (d.parentId === "") d.parentId = "VIRTUAL_ROOT"; });
                 chartData.push({
-                    id: "VIRTUAL_ROOT", parentId: "", name: "Keluarga Besar", positionName: "Pusat Silsilah",
+                    id: "VIRTUAL_ROOT", parentId: "", name: "Keluarga Besar", positionName: "Pusat Kekerabatan",
                     imageUrl: "https://ui-avatars.com/api/?name=Keluarga&background=1d4ed8&color=fff",
                     gender: "L", spouses: []
                 });
@@ -627,44 +645,69 @@
 
             if (!chart) {
                 chart = new d3.OrgChart().container('.chart-container').data(chartData)
-                    .nodeWidth(d => (d.data.spouses && d.data.spouses.length > 0) ? 450 : 210) // Lebar dinamis jika ada pasangan
-                    .initialZoom(0.8).nodeHeight(d => 130).childrenMargin(d => 50).compactMarginBetween(d => 25).compactMarginPair(d => 25)
+                    // Lebar Node Diatur Dinamis: Jika ada pasangan, areanya dibesarkan agar bisa bersebelahan
+                    .nodeWidth(d => {
+                        if (d.data.spouses && d.data.spouses.length > 0) {
+                            return 220 + (d.data.spouses.length * 260); // 220px (Pasangan) + 40px (Garis)
+                        }
+                        return 220; 
+                    })
+                    .initialZoom(0.8).nodeHeight(d => 120).childrenMargin(d => 50).compactMarginBetween(d => 30).compactMarginPair(d => 30)
                     .nodeContent(function(d, i, arr, state) {
                         
-                        // FUNGSI RENDER SATU KOTAK PROFIL
-                        const renderProfileCard = (id, name, position, gender, image) => {
+                        // FUNGSI RENDER 1 KOTAK PROFIL
+                        const renderCard = (id, name, position, gender, image, isSpouse) => {
                             const color = gender === 'L' ? '#eff6ff' : '#fdf2f8'; 
                             const borderColor = gender === 'L' ? '#3b82f6' : '#ec4899';
                             const iconGen = gender === 'L' ? '<i class="fas fa-mars text-blue-400"></i>' : '<i class="fas fa-venus text-pink-400"></i>';
                             const escapedName = name.replace(/'/g, "\\'");
                             
+                            // Tombol Tambah Personal (Di bawah nama orang terkait)
+                            // Jika bukan Virtual Root, tampilkan tombol tambah kerabat biasa.
+                            let btnHtml = '';
+                            if (id !== "VIRTUAL_ROOT") {
+                                btnHtml = `
+                                <button onclick="openFormModal('${id}', '${escapedName}')" class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-7 h-7 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-md border border-gray-200 hover:bg-gray-100 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Ayah/Ibu/Pasangan/Anak (Tunggal)">
+                                    <i class="fas fa-plus text-[10px]"></i>
+                                </button>`;
+                            }
+
                             return `
-                                <div class="relative shadow-md hover:shadow-xl transition" style="background-color:${color}; border: 2px solid ${borderColor}; border-radius: 12px; width: 210px; height: 110px; display: flex; align-items: center; padding: 12px; box-sizing: border-box;">
+                                <div class="relative shadow-md hover:shadow-xl transition" style="background-color:${color}; border: 2px solid ${borderColor}; border-radius: 12px; width: 220px; height: 110px; display: flex; align-items: center; padding: 12px; box-sizing: border-box; flex-shrink: 0;">
                                     <div class="absolute top-2 right-2 text-xs opacity-60">${iconGen}</div>
                                     <img src="${image}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-right: 14px;" />
                                     <div style="width:calc(100% - 70px); overflow:hidden;">
                                         <div style="font-weight: 800; font-size: 15px; color: #1f2937; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" title="${name}">${name}</div>
                                         <div style="font-size: 11px; color: #6b7280; margin-top: 4px; text-transform: uppercase; font-weight:600; background:white; padding: 2px 6px; border-radius: 4px; display:inline-block; border:1px solid #f3f4f6;">${position}</div>
                                     </div>
-                                    <!-- Tombol Tambah di Bawah Tengah Node -->
-                                    <button onclick="openFormModal('${id}', '${escapedName}')" class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white hover:bg-blue-700 hover:scale-110 transition z-50 cursor-pointer" title="Tambahkan Kerabat">
-                                        <i class="fas fa-plus text-[10px]"></i>
-                                    </button>
+                                    ${btnHtml}
                                 </div>
                             `;
                         };
 
-                        let html = `<div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; gap:15px;">`;
+                        let html = `<div style="display:flex; justify-content:center; align-items:center; width:100%; height:100%;">`;
                         
-                        // Render Main Node
-                        html += renderProfileCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl);
+                        // 1. Gambar Orang Utama
+                        html += renderCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl, false);
                         
-                        // Render Spouses di sampingnya
+                        // 2. Gambar Pasangan dan Garis Penghubungnya
                         if (d.data.spouses && d.data.spouses.length > 0) {
                             d.data.spouses.forEach(sp => {
                                 const spImage = sp.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(sp.Nama) + "&background=random";
-                                html += `<div style="color:#ec4899; font-size:24px; display:flex; align-items:center; filter: drop-shadow(0 2px 4px rgba(236,72,153,0.3));"><i class="fas fa-heart"></i></div>`;
-                                html += renderProfileCard(sp.ID_Anggota, sp.Nama, sp.Hubungan, sp.Jenis_Kelamin, spImage);
+                                const escapedCoupleName = (d.data.name + " & " + sp.Nama).replace(/'/g, "\\'");
+                                
+                                html += `
+                                <div style="width:40px; height:4px; background-color:#cbd5e1; position:relative; z-index:0; flex-shrink:0;">
+                                    <!-- Ikon Hati di Atas Garis -->
+                                    <div style="position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:white; border-radius:50%; padding:2px; border:2px solid #cbd5e1; z-index:1;">
+                                        <i class="fas fa-heart text-pink-500 text-[10px]"></i>
+                                    </div>
+                                    <!-- Tombol Tambah Anak (Spesifik Pasangan) -->
+                                    <button onclick="openFormModal('${d.data.id}', '${escapedCoupleName}', 'Anak')" class="absolute top-3 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white hover:bg-blue-700 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Anak dari Pasangan Ini">
+                                        <i class="fas fa-child text-[10px]"></i>
+                                    </button>
+                                </div>`;
+                                html += renderCard(sp.ID_Anggota, sp.Nama, sp.Hubungan, sp.Jenis_Kelamin, spImage, true);
                             });
                         }
                         
@@ -677,6 +720,10 @@
             }
         }
 
+        function populateDropdowns() {
+            // Dropdown disembunyikan/dihapus karena ID diambil otomatis melalui klik visual pada kotak node.
+        }
+
         function copyShareLink() {
             if(!targetEmail) return Swal.fire('Oops', 'Silsilah belum dipilih.', 'info');
             const url = window.location.origin + window.location.pathname + "?email=" + targetEmail;
@@ -685,7 +732,7 @@
             });
         }
 
-        // --- SUBMIT FORM DENGAN LOGIKA HUBUNGAN ---
+        // --- SUBMIT FORM DENGAN LOGIKA HUBUNGAN CERDAS ---
         function submitForm(e) {
             e.preventDefault();
             const btnSubmit = document.getElementById('btnSubmit');
@@ -694,26 +741,27 @@
             let formData = {
                 targetOwnerEmail: targetEmail, pengajuEmail: currentUser,
                 nama: document.getElementById('nama').value, jenisKelamin: document.getElementById('jenisKelamin').value,
+                privasi: document.getElementById('privasiSilsilah').value, 
                 fotoBase64: null, fotoName: null,
-                idParent: "", idSpouse: "", idAnak: "", privasi: "Terbuka", hubungan: "Kepala Keluarga"
+                hubungan: "Kepala Keluarga", // Default (jika baru pertama kali)
+                idParent: "", idSpouse: "", idAnak: ""
             };
 
-            // Mapping berdasarkan Reference Node (Node yang di klik)
+            // Mapping ID berdasarkan Klik pada Node (Reverse Relasional Logic)
             if (familyDataCache.length > 0 && activeReferenceNode) {
                 const hub = document.getElementById('hubungan').value;
                 formData.hubungan = hub;
                 
-                // Jika menambahkan Anak, maka node yang diklik adalah Parentnya
-                if (hub === 'Anak') formData.idParent = activeReferenceNode.id;
-                
-                // Jika menambahkan Pasangan, maka node yang diklik adalah Spousenya
-                if (hub === 'Pasangan') formData.idSpouse = activeReferenceNode.id;
-                
-                // Jika menambahkan Ayah/Ibu, maka node yang diklik menjadi Anak-nya! (Logika Reverse)
-                if (hub === 'Ayah' || hub === 'Ibu') formData.idAnak = activeReferenceNode.id;
-            } else {
-                // Konfigurasi silsilah perdana
-                formData.privasi = document.getElementById('privasiSilsilah').value;
+                if (hub === 'Anak') {
+                    // Jika klik tambah anak, maka Node yang diklik menjadi Parent
+                    formData.idParent = activeReferenceNode.id;
+                } else if (hub === 'Pasangan') {
+                    // Jika klik tambah pasangan, maka Node yang diklik menjadi Spousenya
+                    formData.idSpouse = activeReferenceNode.id;
+                } else if (hub === 'Ayah' || hub === 'Ibu') {
+                    // Jika klik tambah Ayah/Ibu, maka Node yang diklik menjadi ANAK (Relasional Terbalik / Reverse Parent)
+                    formData.idAnak = activeReferenceNode.id;
+                }
             }
 
             const file = document.getElementById('foto').files[0];
@@ -721,9 +769,7 @@
                 const reader = new FileReader();
                 reader.onload = function(e) { formData.fotoBase64 = e.target.result; formData.fotoName = file.name; sendDataToServer(formData); };
                 reader.readAsDataURL(file);
-            } else {
-                sendDataToServer(formData);
-            }
+            } else sendDataToServer(formData);
         }
 
         function sendDataToServer(formData) {
