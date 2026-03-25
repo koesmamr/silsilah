@@ -182,7 +182,7 @@
                     </div>
 
                     <div id="parentDiv" class="hidden">
-                        <label class="block text-sm font-bold text-gray-700">Pilih Orang Tua (Parent)</label>
+                        <label id="labelParent" class="block text-sm font-bold text-gray-700">Pilih Orang Tua (Parent)</label>
                         <select id="idParent" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 border bg-gray-50">
                             <option value="">-- Pilih --</option>
                         </select>
@@ -369,11 +369,19 @@
             const val = e.target.value;
             const parentDiv = document.getElementById('parentDiv');
             const privasiDiv = document.getElementById('privasiDiv');
+            const labelParent = document.getElementById('labelParent');
             
             if(val === 'Anak') {
-                parentDiv.classList.remove('hidden'); document.getElementById('idParent').required = true;
+                parentDiv.classList.remove('hidden'); 
+                document.getElementById('idParent').required = true;
+                labelParent.innerText = 'Pilih Orang Tua (Parent)';
+            } else if (val === 'Pasangan') {
+                parentDiv.classList.remove('hidden'); 
+                document.getElementById('idParent').required = true;
+                labelParent.innerText = 'Pilih Pasangan (Suami/Istri)';
             } else {
-                parentDiv.classList.add('hidden'); document.getElementById('idParent').required = false;
+                parentDiv.classList.add('hidden'); 
+                document.getElementById('idParent').required = false;
             }
             
             if(val === 'Kepala Keluarga' && familyDataCache.length === 0) privasiDiv.classList.remove('hidden');
@@ -580,15 +588,35 @@
                 return;
             }
 
+            const existingIds = new Set(data.map(d => d.ID_Anggota));
+            let rootNodesCount = 0;
+
             const chartData = data.map(d => {
                 let parentId = d.ID_Parent;
-                if (!parentId || parentId === "") parentId = "";
+                // Cegah error multiple roots jika parent tidak ada atau tidak valid
+                if (!parentId || !existingIds.has(parentId)) {
+                    parentId = "";
+                    rootNodesCount++;
+                }
                 return {
                     id: d.ID_Anggota, parentId: parentId, name: d.Nama, positionName: d.Hubungan,
                     imageUrl: d.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(d.Nama) + "&background=random",
                     gender: d.Jenis_Kelamin
                 };
             });
+
+            // PENYELESAIAN ERROR MULTIPLE ROOTS
+            // Jika ada lebih dari 1 orang yang tidak punya parent (misal input pasangan tp tidak dilink)
+            if (rootNodesCount > 1) {
+                chartData.forEach(d => {
+                    if (d.parentId === "") d.parentId = "VIRTUAL_ROOT";
+                });
+                chartData.push({
+                    id: "VIRTUAL_ROOT", parentId: "", name: "Keluarga Besar", positionName: "Pusat Silsilah",
+                    imageUrl: "https://ui-avatars.com/api/?name=Keluarga&background=1d4ed8&color=fff",
+                    gender: "L"
+                });
+            }
 
             if (!chart) {
                 chart = new d3.OrgChart().container('.chart-container').data(chartData).nodeWidth(d => 220).initialZoom(0.8).nodeHeight(d => 110).childrenMargin(d => 40).compactMarginBetween(d => 20).compactMarginPair(d => 20)
