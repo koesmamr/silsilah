@@ -685,31 +685,24 @@
                             .attr("stroke-width", 2)
                             .attr("fill", "none");
                             
-                        if (d && d.target && d.target.data && d.source && d.source.data) {
-                            const dAttr = path.attr("d");
-                            if (dAttr) {
-                                const coords = dAttr.match(/[-+]?\d*\.?\d+/g);
-                                if (coords && coords.length >= 4) {
-                                    const startY = parseFloat(coords[1]);
-                                    const endY = parseFloat(coords[coords.length - 1]);
+                        // PENTING: Gunakan data d secara langsung tanpa me-match string attr bawaan 
+                        // agar tahan banting terhadap animasi dan error "undefined".
+                        if (d && d.source && d.target) {
+                            // AMAN: Hitung koordinat Y
+                            const startY = d.source.y + (d.source.height || 135);
+                            const endY = d.target.y;
 
-                                    // AMAN: Hitung lebar source (Orang Tua) secara manual untuk mencegah "undefined width error"
-                                    const sourceSpousesCount = d.source.data.spouses ? d.source.data.spouses.length : 0;
-                                    const sourceWidth = sourceSpousesCount > 0 ? 220 + (sourceSpousesCount * 260) : 220;
-                                    // Titik awal garis pasti jatuh di tengah-tengah kotak parent pertama (Orang tua kandung)
-                                    const startX = (d.source.x - (sourceWidth / 2)) + 110;
+                            // PERBAIKAN LOGIKA GARIS DARAH SECARA MATEMATIS:
+                            // d.x selalu merupakan titik "Paling Kiri" dari seluruh area Node gabungan.
+                            // Kotak utama (Anggota Kandung/Darah) PASTI dirender pertama dengan lebar 220px.
+                            // Jadi titik tengah kotak darah pasti adalah d.x + 110, selamanya.
+                            
+                            const startX = d.source.x + 110; // Titik tengah kotak Orang Tua kandung
+                            const endX = d.target.x + 110;   // Titik tengah kotak Anak kandung
 
-                                    // AMAN: Hitung lebar target (Anak) secara manual
-                                    const targetSpousesCount = d.target.data.spouses ? d.target.data.spouses.length : 0;
-                                    const targetWidth = targetSpousesCount > 0 ? 220 + (targetSpousesCount * 260) : 220;
-                                    // Titik akhir garis mendarat PASTI di tengah-tengah kotak si Anak (biologis), mengabaikan posisi pasangannya
-                                    const endX = (d.target.x - (targetWidth / 2)) + 110; 
-
-                                    // Menggunakan kurva siku Bezier (Cubic Bezier) agar rapi
-                                    const midY = startY + (endY - startY) / 2;
-                                    path.attr("d", `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`);
-                                }
-                            }
+                            // Kurva Bezier Siku untuk garis turun yang profesional
+                            const midY = startY + (endY - startY) / 2;
+                            path.attr("d", `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`);
                         }
                     })
                     .nodeContent(function(d, i, arr, state) {
