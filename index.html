@@ -587,8 +587,15 @@
 
             let graph = {};
             data.forEach(d => graph[d.ID_Anggota] = { up: [], down: [], spouse: [] });
+            
+            // LOGIKA PARSING MULTI-PARENT
             data.forEach(d => {
-                if (d.ID_Parent) { graph[d.ID_Anggota].up.push(d.ID_Parent); if (graph[d.ID_Parent]) graph[d.ID_Parent].down.push(d.ID_Anggota); }
+                if (d.ID_Parent) { 
+                    const parents = String(d.ID_Parent).split(',');
+                    const mainP = parents[0];
+                    graph[d.ID_Anggota].up.push(mainP); 
+                    if (graph[mainP]) graph[mainP].down.push(d.ID_Anggota); 
+                }
                 if (d.ID_Spouse) { graph[d.ID_Anggota].spouse.push(d.ID_Spouse); if (graph[d.ID_Spouse]) graph[d.ID_Spouse].spouse.push(d.ID_Anggota); }
             });
 
@@ -602,7 +609,6 @@
                 visited.add(curr.id);
 
                 let person = data.find(d => d.ID_Anggota === curr.id);
-                // TAMBAHAN PROTEKSI UNDEFINED PERSON
                 if (person) {
                     relations[curr.id] = getTitleFromPath(curr.path, person.Jenis_Kelamin);
                 }
@@ -668,25 +674,42 @@
 
             if (data.length === 0) return;
 
-            const parentIds = new Set(data.map(d => d.ID_Parent).filter(p => p));
+            const parentIds = new Set();
+            data.forEach(d => {
+                if(d.ID_Parent) {
+                    const parts = String(d.ID_Parent).split(',');
+                    parts.forEach(p => parentIds.add(p));
+                }
+            });
 
             const mappedNodes = new Map();
             data.forEach(d => {
                 const safeName = d.Nama ? String(d.Nama) : "Tanpa Nama";
+                const parents = String(d.ID_Parent || "").split(',');
+                
                 mappedNodes.set(d.ID_Anggota, {
-                    id: d.ID_Anggota, parentId: d.ID_Parent || "", name: safeName, positionName: d.HubunganDinamis || "Kerabat",
+                    id: d.ID_Anggota, 
+                    parentId: parents[0] || "", 
+                    secondParentId: parents[1] || "", 
+                    isJoint: parents.length > 1, // Penanda apakah ini anak dari 2 orang tua secara eksplisit
+                    name: safeName, positionName: d.HubunganDinamis || "Kerabat",
                     imageUrl: d.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(safeName) + "&background=random",
-                    gender: d.Jenis_Kelamin, spouses: [], crossSpouses: [], hasParent: d.ID_Parent !== "", status: d.Status
+                    gender: d.Jenis_Kelamin, spouses: [], crossSpouses: [], hasParent: (parents[0] || "") !== "", status: d.Status
                 });
             });
 
             let crossMarriageConnections = []; 
 
-            // SOLUSI BUG ANAK YATIM: Fungsi pengalih jangkar otomatis
+            // FUNGSI PENGALIH JANGKAR (REPOINTING) YANG CERDAS UNTUK ANAK TIRI / POLIGAMI
             const repointChildren = (oldId, newId) => {
                 mappedNodes.forEach(node => {
                     if (node.parentId === oldId) {
                         node.parentId = newId;
+                        // Jika anak ini kehilangan jangkar aslinya karena merger, 
+                        // kita set "secondParentId" ke oldId agar sistem tau dia itu anak bawaan (Anak Tiri / Poligami)
+                        if (!node.secondParentId || node.secondParentId === newId) {
+                            node.secondParentId = oldId;
+                        }
                     }
                 });
             };
@@ -709,7 +732,6 @@
                             let isNode1Parent = parentIds.has(node1.id);
                             let isNode2Parent = parentIds.has(node2.id);
 
-                            // PENGALIHAN JANGKAR DITERAPKAN DI SETIAP PENGGABUNGAN KOTAK
                             if (node1.hasParent && !node2.hasParent) { 
                                 node1.spouses.push(node2); mappedNodes.delete(node2.id); 
                                 repointChildren(node2.id, node1.id);
@@ -796,7 +818,26 @@
                             const startY = d.source.y + (d.source.height || 135);
                             const endY = d.target.y;
 
-                            const startX = d.source.x + 110; 
+                            // Default: Garis turun dari ayah/ibu kandung tunggal (Main Node)
+                            let startX = d.source.x + 110; 
+                            
+                            // LOGIKA POLIGAMI / POLYANDRI & ANAK TIRI
+                            if (d.target.data.secondParentId) {
+                                // Cari urutan pasangan mana yang menjadi orang tua kedua
+                                const spouseIdx = d.source.data.spouses.findIndex(s => s.id === d.target.data.secondParentId);
+                                if (spouseIdx !== -1) {
+                                    if (d.target.data.isJoint) {
+                                        // ANAK BERSAMA: Garis turun lurus dari tepat ikon Hati (Heart) pasangan tersebut
+                                        // Rumus: 240px (jarak ke Heart pertama) + Kelipatan istri ke-n
+                                        startX = d.source.x + 240 + (spouseIdx * 260);
+                                    } else {
+                                        // ANAK TIRI: Garis turun lurus dari tengah kotak Pasangan (bukan dari Heart)
+                                        // Rumus: 370px (jarak ke tengah kotak istri pertama) + Kelipatan istri ke-n
+                                        startX = d.source.x + 370 + (spouseIdx * 260);
+                                    }
+                                }
+                            }
+
                             const endX = d.target.x + 110;   
 
                             const midY = startY + (endY - startY) / 2;
@@ -828,7 +869,8 @@
                                         const escapedCoupleName = String((name || '') + " & " + (sp.name || '')).replace(/'/g, "\\'");
                                         const escapedSpouseName = String(sp.name || '').replace(/'/g, "\\'");
                                         const rightPos = 12 + (idx * 32); 
-                                        btnHtml += `<button onclick="openFormModal('${id}', '${escapedCoupleName}', 'Anak', true)" class="absolute -bottom-3 w-7 h-7 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center shadow-md border border-pink-300 hover:bg-pink-200 hover:scale-110 transition z-50 cursor-pointer" style="right: ${rightPos}px;" title="Tambah Anak bersama ${escapedSpouseName}"><i class="fas fa-child text-[10px]"></i></button>`;
+                                        // PENTING: Meneruskan 2 ID orang tua ('id,sp.id') agar anak tercatat sebagai anak bersama
+                                        btnHtml += `<button onclick="openFormModal('${id},${sp.id}', '${escapedCoupleName}', 'Anak', true)" class="absolute -bottom-3 w-7 h-7 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center shadow-md border border-pink-300 hover:bg-pink-200 hover:scale-110 transition z-50 cursor-pointer" style="right: ${rightPos}px;" title="Tambah Anak bersama ${escapedSpouseName}"><i class="fas fa-child text-[10px]"></i></button>`;
                                     });
                                 }
                             }
@@ -864,7 +906,8 @@
                                 
                                 let childBtnHtml = '';
                                 if(currentUser) {
-                                    childBtnHtml = `<button onclick="openFormModal('${d.data.id}', '${escapedCoupleName}', 'Anak', true)" class="absolute top-3 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white hover:bg-blue-700 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Anak dari Pasangan Ini"><i class="fas fa-child text-[10px]"></i></button>`;
+                                    // PENTING: Meneruskan 2 ID orang tua ('d.data.id,sp.id') agar anak tercatat sebagai anak bersama
+                                    childBtnHtml = `<button onclick="openFormModal('${d.data.id},${sp.id}', '${escapedCoupleName}', 'Anak', true)" class="absolute top-3 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white hover:bg-blue-700 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Anak dari Pasangan Ini"><i class="fas fa-child text-[10px]"></i></button>`;
                                 }
 
                                 html += `<div style="width:40px; height:4px; background-color:#cbd5e1; position:relative; z-index:0; flex-shrink:0; margin-top:10px;"><div style="position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:white; border-radius:50%; padding:2px; border:2px solid #cbd5e1; z-index:1;"><i class="fas fa-heart text-pink-500 text-[10px]"></i></div>${childBtnHtml}</div>`;
