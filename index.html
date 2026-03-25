@@ -624,7 +624,7 @@
                 "U": gender === 'L' ? "Ayah" : "Ibu", 
                 "US": gender === 'L' ? "Ayah" : "Ibu",
                 "SU": gender === 'L' ? "Mertua (L)" : "Mertua (P)", 
-                "SUS": gender === 'L' ? "Mertua (L)" : "Mertua (P)", // PERBAIKAN: Ibu/Ayah Mertua (Pasangan dari SU)
+                "SUS": gender === 'L' ? "Mertua (L)" : "Mertua (P)", 
                 "D": gender === 'L' ? "Anak (L)" : "Anak (P)", 
                 "SD": gender === 'L' ? "Anak (L)" : "Anak (P)",
                 "UD": gender === 'L' ? "Saudara (L)" : "Saudara (P)", 
@@ -635,17 +635,19 @@
                 "UUS": gender === 'L' ? "Kakek" : "Nenek",
                 "UUDD": "Sepupu", 
                 "UDD": "Keponakan", 
-                "USDD": "Keponakan", // PERBAIKAN: Keponakan dari jalur ibu
+                "USDD": "Keponakan", 
                 "DD": "Cucu", 
-                "SDD": "Cucu", // PERBAIKAN: Cucu yang tercatat via istri/suami
+                "SDD": "Cucu", 
                 "UDS": "Ipar", 
-                "USDS": "Ipar", // PERBAIKAN: Ipar dari saudara jalur ibu
+                "USDS": "Ipar", 
                 "SUD": "Ipar", 
-                "SUSD": "Ipar", // PERBAIKAN: Ipar dari jalur saudara mertua
+                "SUSD": "Ipar", 
+                "SUDS": "Ipar",  // PERBAIKAN: Pasangan dari saudara ipar (Istri/Suami dari Kakak/Adik Ipar)
+                "SUSDS": "Ipar", // PERBAIKAN: Pasangan dari saudara ipar (via jalur mertua ke-2)
                 "DS": "Menantu", 
-                "SDS": "Menantu", // PERBAIKAN: Menantu dari anak yang tercatat via pasangan
+                "SDS": "Menantu", 
                 "UUU": "Buyut",
-                "UUUS": "Buyut" // PERBAIKAN: Buyut (pasangan)
+                "UUUS": "Buyut" 
             };
             return dict[path] || "Kerabat Jauh";
         }
