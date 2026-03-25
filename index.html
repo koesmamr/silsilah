@@ -203,13 +203,15 @@
         </div>
     </div>
     
-    <!-- SCRIPT CLIENT SIDE -->
+    <!-- SCRIPT CLIENT SIDE (AJAX/REST API) -->
     <script>
+        // MENGUBAH MEKANISME DARI google.script.run KE fetch() API
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2ZQ9o6hSnAkkCrDPscsYBc8jFD4rFmPCyDRmGkwCyKJolejDglJFqCdnna9ElpKnAqg/exec';
         const SUPER_ADMIN = "syamsul18782@gmail.com";
         
-        // 1. Inisialisasi State yang Mendukung F5/Refresh
-        let targetEmail = "<?= targetEmail ?>"; 
-        if (targetEmail.includes("?=")) targetEmail = ""; // Fallback localhost
+        // Deteksi Parameter URL untuk Hosting Statis
+        const urlParams = new URLSearchParams(window.location.search);
+        let targetEmail = urlParams.get('email') || ""; 
         
         // Prioritaskan URL Parameter. Jika kosong, panggil dari Session Storage
         if (targetEmail) {
@@ -224,6 +226,24 @@
         let isOwner = false;
         let familyDataCache = [];
         let chart;
+
+        // --- FUNGSI HELPER UNTUK API CALL ---
+        async function apiCall(payload) {
+            try {
+                // Menggunakan mode text/plain untuk menghindari isu CORS Preflight di GitHub Pages
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error(error);
+                throw new Error("Gagal terhubung ke Server Database.");
+            }
+        }
 
         // 2. Window Onload (Pemuatan Halaman)
         window.onload = function() {
@@ -299,6 +319,11 @@
         function kembaliKeBeranda() {
             targetEmail = "";
             sessionStorage.removeItem('familyTree_targetEmail');
+            
+            // Bersihkan URL dari parameter tanpa mereload halaman
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.pushState({path:newUrl}, '', newUrl);
+
             document.getElementById('proposalContainer').classList.add('hidden');
             document.getElementById('mainHeader').classList.add('hidden');
             evaluateRole();
@@ -407,13 +432,10 @@
                 document.getElementById('mainHeader').classList.remove('hidden');
                 evaluateRole();
                 Swal.close();
-
-                if (typeof google !== 'undefined' && google.script) {
-                    loadData();
-                    if(isOwner) loadProposals();
-                } else {
-                    Swal.fire('Info', 'Login berhasil (Simulasi Lokal).', 'info');
-                }
+                
+                loadData();
+                if(isOwner) loadProposals();
+                
             } catch (e) {
                 Swal.fire('Error', 'Gagal memproses login: ' + e.message, 'error');
             }
@@ -469,14 +491,15 @@
             `;
         }
 
-        // 6. Manipulasi Data
+        // 6. Manipulasi Data melalui API GAS
         function loadData() {
             if(!targetEmail) return;
             document.getElementById('loadingChart').style.display = 'flex';
             document.getElementById('treeContainer').style.display = 'none';
             document.getElementById('ownerNameDisplay').innerText = targetEmail;
 
-            google.script.run.withSuccessHandler(function(res) {
+            apiCall({ action: 'getFamilyData', ownerEmail: targetEmail, visitorEmail: currentUser })
+            .then(res => {
                 if (res.status === 'error' && res.message === 'PRIVATE_TREE') {
                     document.getElementById('loadingChart').style.display = 'none';
                     document.getElementById('treeContainer').style.display = 'block';
@@ -506,36 +529,40 @@
                 } else {
                     Swal.fire('Error', res.message, 'error');
                 }
-            }).withFailureHandler(function(err){
+            })
+            .catch(err => {
                 Swal.fire('Server Error', err.message, 'error');
-            }).getFamilyData(targetEmail, currentUser);
+            });
         }
 
         function loadProposals() {
             if(!currentUser) return;
-            google.script.run.withSuccessHandler(function(jsonStr) {
-                const proposals = JSON.parse(jsonStr);
-                if (proposals.length > 0) {
-                    document.getElementById('proposalContainer').classList.remove('hidden');
-                    let html = '<ul class="mt-2 space-y-3">';
-                    proposals.forEach(p => {
-                        let detail = JSON.parse(p.Data_Perubahan_JSON);
-                        let targetInfo = detail.AdminInfo_TargetOwner ? `<br><span class="text-xs text-purple-600 mt-1 inline-block bg-purple-50 px-2 py-0.5 rounded"><i class="fas fa-crown"></i> <b>Super Admin View:</b> Milik ${detail.AdminInfo_TargetOwner}</span>` : '';
-                        html += `
-                        <li class="flex justify-between items-center bg-white p-3.5 rounded-xl border border-yellow-200 shadow-sm">
-                            <div class="text-sm text-gray-800"><b>${detail.Nama}</b> (${detail.Hubungan}) diajukan oleh <b class="text-blue-600">${p.Pengaju_Email}</b>${targetInfo}</div>
-                            <div class="ml-4 flex-shrink-0 flex gap-2">
-                                <button onclick="handleProposal('${p.ID_Proposal}', 'approve')" class="text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fas fa-check mr-1"></i> Terima</button>
-                                <button onclick="handleProposal('${p.ID_Proposal}', 'reject')" class="text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fas fa-times mr-1"></i> Tolak</button>
-                            </div>
-                        </li>`;
-                    });
-                    html += '</ul>';
-                    document.getElementById('proposalList').innerHTML = html;
-                } else {
-                    document.getElementById('proposalContainer').classList.add('hidden');
+            apiCall({ action: 'getProposals', userEmail: currentUser })
+            .then(res => {
+                if (res.status === 'success') {
+                    const proposals = JSON.parse(res.data);
+                    if (proposals.length > 0) {
+                        document.getElementById('proposalContainer').classList.remove('hidden');
+                        let html = '<ul class="mt-2 space-y-3">';
+                        proposals.forEach(p => {
+                            let detail = JSON.parse(p.Data_Perubahan_JSON);
+                            let targetInfo = detail.AdminInfo_TargetOwner ? `<br><span class="text-xs text-purple-600 mt-1 inline-block bg-purple-50 px-2 py-0.5 rounded"><i class="fas fa-crown"></i> <b>Super Admin View:</b> Milik ${detail.AdminInfo_TargetOwner}</span>` : '';
+                            html += `
+                            <li class="flex justify-between items-center bg-white p-3.5 rounded-xl border border-yellow-200 shadow-sm">
+                                <div class="text-sm text-gray-800"><b>${detail.Nama}</b> (${detail.Hubungan}) diajukan oleh <b class="text-blue-600">${p.Pengaju_Email}</b>${targetInfo}</div>
+                                <div class="ml-4 flex-shrink-0 flex gap-2">
+                                    <button onclick="handleProposal('${p.ID_Proposal}', 'approve')" class="text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fas fa-check mr-1"></i> Terima</button>
+                                    <button onclick="handleProposal('${p.ID_Proposal}', 'reject')" class="text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fas fa-times mr-1"></i> Tolak</button>
+                                </div>
+                            </li>`;
+                        });
+                        html += '</ul>';
+                        document.getElementById('proposalList').innerHTML = html;
+                    } else {
+                        document.getElementById('proposalContainer').classList.add('hidden');
+                    }
                 }
-            }).getProposals(currentUser);
+            });
         }
 
         function renderTree(data) {
@@ -597,9 +624,10 @@
 
         function copyShareLink() {
             if(!targetEmail) return Swal.fire('Oops', 'Silsilah belum dipilih.', 'info');
-            const url = "https://script.google.com/macros/s/AKfycbx2ZQ9o6hSnAkkCrDPscsYBc8jFD4rFmPCyDRmGkwCyKJolejDglJFqCdnna9ElpKnAqg/exec?email=" + targetEmail;
+            // Menyesuaikan URL untuk disalin sesuai URL hosting GitHub Pages pengguna!
+            const url = window.location.origin + window.location.pathname + "?email=" + targetEmail;
             navigator.clipboard.writeText(url).then(() => {
-                Swal.fire({ title: 'Tersalin!', text: 'Link siap dibagikan.', icon: 'success', timer: 3000 });
+                Swal.fire({ title: 'Tersalin!', text: 'Link GitHub Pages siap dibagikan.', icon: 'success', timer: 3000 });
             });
         }
 
@@ -624,14 +652,17 @@
         }
 
         function sendDataToServer(formData) {
-            google.script.run.withSuccessHandler(function(res) {
+            apiCall({ action: 'processFamilyData', formData: formData })
+            .then(res => {
                 closeFormModal();
                 Swal.fire({ title: res.success ? 'Berhasil!' : 'Gagal', text: res.message, icon: res.success ? 'success' : 'error' });
                 if(res.success) loadData(); 
                 document.getElementById('btnSubmit').disabled = false;
-            }).withFailureHandler(function(err){
-                Swal.fire('Error System', err.message, 'error'); document.getElementById('btnSubmit').disabled = false;
-            }).processFamilyData(formData);
+            })
+            .catch(err => {
+                Swal.fire('Error System', err.message, 'error'); 
+                document.getElementById('btnSubmit').disabled = false;
+            });
         }
 
         function handleProposal(id, action) {
@@ -639,11 +670,17 @@
                 title: 'Konfirmasi', text: action === 'approve' ? "Setujui anggota ini?" : "Tolak pengajuan ini?", icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya, Lanjutkan'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    const funcName = action === 'approve' ? 'approveProposal' : 'rejectProposal';
                     Swal.fire({title: 'Memproses...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-                    google.script.run.withSuccessHandler(res => {
-                        Swal.fire('Selesai', res.message, 'success'); loadData(); loadProposals();
-                    })[funcName](id, currentUser);
+                    
+                    const actionName = action === 'approve' ? 'approveProposal' : 'rejectProposal';
+                    apiCall({ action: actionName, proposalId: id, userEmail: currentUser })
+                    .then(res => {
+                        Swal.fire('Selesai', res.message, 'success'); 
+                        loadData(); loadProposals();
+                    })
+                    .catch(err => {
+                        Swal.fire('Error', err.message, 'error');
+                    });
                 }
             });
         }
@@ -656,6 +693,11 @@
                 if (result.isConfirmed && result.value) {
                     targetEmail = result.value;
                     sessionStorage.setItem('familyTree_targetEmail', targetEmail); // Simpan state
+                    
+                    // Update URL agar bisa dishare
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?email=' + targetEmail;
+                    window.history.pushState({path:newUrl}, '', newUrl);
+
                     document.getElementById('mainHeader').classList.remove('hidden');
                     evaluateRole();
                     loadData();
