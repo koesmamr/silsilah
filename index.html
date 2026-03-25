@@ -43,6 +43,29 @@
         </div>
     </div>
 
+    <!-- Modal Daftar Silsilah (SUPER ADMIN) -->
+    <div id="adminListModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center z-[100] backdrop-blur-sm p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative border border-gray-100">
+            <button onclick="closeAdminListModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition"><i class="fas fa-times text-xl"></i></button>
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 flex items-center"><i class="fa-solid fa-crown text-purple-600 mr-3"></i> Daftar Silsilah Sistem</h2>
+            <div class="overflow-y-auto flex-1 border rounded-lg">
+                <table class="min-w-full text-left text-sm whitespace-nowrap">
+                    <thead class="uppercase tracking-wider border-b-2 border-gray-200 bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                            <th class="px-4 py-3 font-bold text-gray-600">Nama / Email Pemilik</th>
+                            <th class="px-4 py-3 font-bold text-gray-600">Tree ID</th>
+                            <th class="px-4 py-3 font-bold text-gray-600">Privasi</th>
+                            <th class="px-4 py-3 font-bold text-gray-600 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminListTableBody" class="divide-y divide-gray-100 bg-white">
+                        <!-- Data injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Navbar -->
     <nav class="bg-blue-600 text-white shadow-lg sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -51,13 +74,14 @@
                     <i class="fa-solid fa-network-wired text-2xl mr-3"></i>
                     <span class="font-bold text-xl tracking-tight">FamilyTree</span>
                 </div>
-                <div class="flex items-center space-x-2 sm:space-x-3">
-                    <span id="userEmailBadge" class="hidden text-xs sm:text-sm bg-blue-700 px-3 py-1 rounded-full font-medium"></span>
-                    <button id="btnSuperAdmin" onclick="cariSilsilahAdmin()" class="hidden bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-lg text-sm font-semibold transition shadow"><i class="fa-solid fa-search sm:mr-1"></i><span class="hidden sm:inline"> Pantau</span></button>
-                    <button id="btnManageAdmin" onclick="kelolaAdmin()" class="hidden bg-indigo-500 hover:bg-indigo-600 px-3 py-1.5 rounded-lg text-sm font-semibold transition shadow"><i class="fa-solid fa-users-cog sm:mr-1"></i><span class="hidden sm:inline"> Atur Admin</span></button>
-                    <button onclick="copyShareLink()" class="bg-green-500 hover:bg-green-600 px-3 py-1.5 rounded-lg text-sm font-semibold transition shadow"><i class="fa-solid fa-share-nodes sm:mr-1"></i><span class="hidden sm:inline"> Bagikan</span></button>
-                    <button id="btnLogin" onclick="openLoginModal()" class="bg-white text-blue-600 hover:bg-gray-100 px-4 py-1.5 rounded-lg text-sm font-bold transition shadow">Login SSO</button>
-                    <button id="btnLogout" onclick="logoutSSO()" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition shadow">Logout</button>
+                <div class="flex items-center space-x-2 sm:space-x-3 overflow-x-auto no-scrollbar">
+                    <span id="userEmailBadge" class="hidden text-xs sm:text-sm bg-blue-700 px-3 py-1 rounded-full font-medium whitespace-nowrap"></span>
+                    <button id="btnDaftarSilsilah" onclick="lihatDaftarSilsilah()" class="hidden bg-yellow-500 hover:bg-yellow-600 px-3 py-1.5 rounded-lg text-sm font-semibold transition shadow whitespace-nowrap"><i class="fa-solid fa-list sm:mr-1"></i><span class="hidden sm:inline"> Semua Silsilah</span></button>
+                    <button id="btnSuperAdmin" onclick="cariSilsilahAdmin()" class="hidden bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-lg text-sm font-semibold transition shadow whitespace-nowrap"><i class="fa-solid fa-search sm:mr-1"></i><span class="hidden sm:inline"> Pantau</span></button>
+                    <button id="btnManageAdmin" onclick="kelolaAdmin()" class="hidden bg-indigo-500 hover:bg-indigo-600 px-3 py-1.5 rounded-lg text-sm font-semibold transition shadow whitespace-nowrap"><i class="fa-solid fa-users-cog sm:mr-1"></i><span class="hidden sm:inline"> Atur Admin</span></button>
+                    <button onclick="copyShareLink()" class="bg-green-500 hover:bg-green-600 px-3 py-1.5 rounded-lg text-sm font-semibold transition shadow whitespace-nowrap"><i class="fa-solid fa-share-nodes sm:mr-1"></i><span class="hidden sm:inline"> Bagikan</span></button>
+                    <button id="btnLogin" onclick="openLoginModal()" class="bg-white text-blue-600 hover:bg-gray-100 px-4 py-1.5 rounded-lg text-sm font-bold transition shadow whitespace-nowrap">Login SSO</button>
+                    <button id="btnLogout" onclick="logoutSSO()" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition shadow whitespace-nowrap">Logout</button>
                 </div>
             </div>
         </div>
@@ -214,7 +238,10 @@
                     document.getElementById('userEmailBadge').classList.remove('hidden');
                     document.getElementById('btnLogin').classList.add('hidden');
                     document.getElementById('btnLogout').classList.remove('hidden');
-                    if (isSuperAdmin) document.getElementById('btnSuperAdmin').classList.remove('hidden');
+                    if (isSuperAdmin) {
+                        document.getElementById('btnSuperAdmin').classList.remove('hidden');
+                        document.getElementById('btnDaftarSilsilah').classList.remove('hidden');
+                    }
                 } catch(e) { localStorage.removeItem('familyTree_user'); }
             }
             evaluateRole();
@@ -376,7 +403,8 @@
                     currentUser = ""; isSuperAdmin = false; isStrictOwner = false; isAdmin = false; localStorage.removeItem('familyTree_user'); 
                     document.getElementById('btnLogin').classList.remove('hidden'); document.getElementById('btnLogout').classList.add('hidden');
                     document.getElementById('userEmailBadge').classList.add('hidden'); document.getElementById('btnSuperAdmin').classList.add('hidden');
-                    document.getElementById('btnManageAdmin').classList.add('hidden'); document.getElementById('proposalContainer').classList.add('hidden');
+                    document.getElementById('btnDaftarSilsilah').classList.add('hidden'); document.getElementById('btnManageAdmin').classList.add('hidden'); 
+                    document.getElementById('proposalContainer').classList.add('hidden');
                     
                     evaluateRole(); 
                     setTimeout(() => {
@@ -401,7 +429,10 @@
                 
                 document.getElementById('userEmailBadge').innerText = currentUser; document.getElementById('userEmailBadge').classList.remove('hidden');
                 document.getElementById('btnLogin').classList.add('hidden'); document.getElementById('btnLogout').classList.remove('hidden');
-                if (isSuperAdmin) document.getElementById('btnSuperAdmin').classList.remove('hidden');
+                if (isSuperAdmin) {
+                    document.getElementById('btnSuperAdmin').classList.remove('hidden');
+                    document.getElementById('btnDaftarSilsilah').classList.remove('hidden');
+                }
                 
                 evaluateRole(); Swal.close();
                 if(currentTreeId) {
@@ -491,6 +522,47 @@
             });
         }
 
+        // FITUR BARU: SUPER ADMIN DAFTAR SILSILAH
+        function lihatDaftarSilsilah() {
+            Swal.fire({title: 'Memuat Daftar...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            apiCall({ action: 'getAllTrees', userEmail: currentUser }).then(res => {
+                Swal.close();
+                if (res.status === 'success') {
+                    let html = '';
+                    res.data.forEach(t => {
+                        html += `
+                        <tr class="hover:bg-gray-50 border-b">
+                            <td class="px-4 py-3">
+                                <div class="font-bold text-gray-800">${t.nama}</div>
+                                <div class="text-xs text-gray-500">${t.email}</div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600 font-mono">${t.treeId}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 text-[10px] font-bold uppercase rounded-full ${t.privasi === 'Terbuka' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${t.privasi}</span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <button onclick="bukaSilsilahDariAdmin('${t.treeId}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"><i class="fas fa-eye mr-1"></i> Buka</button>
+                            </td>
+                        </tr>
+                        `;
+                    });
+                    document.getElementById('adminListTableBody').innerHTML = html;
+                    document.getElementById('adminListModal').classList.remove('hidden');
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            }).catch(err => Swal.fire('Error', err.message, 'error'));
+        }
+
+        function closeAdminListModal() {
+            document.getElementById('adminListModal').classList.add('hidden');
+        }
+
+        function bukaSilsilahDariAdmin(treeId) {
+            closeAdminListModal();
+            window.location.hash = treeId;
+        }
+
         function kelolaAdmin() {
             Swal.fire({
                 title: 'Atur Admin Silsilah',
@@ -554,9 +626,6 @@
             return dict[path] || "Kerabat Jauh";
         }
 
-        // =========================================================================
-        // VISUALISASI BAGAN - PERBAIKAN RENDER GARIS (PATH GENERATOR)
-        // =========================================================================
         function renderTree(data) {
             document.getElementById('loadingChart').style.display = 'none';
             document.getElementById('treeContainer').style.display = 'block';
@@ -609,34 +678,31 @@
             if (!chart) {
                 chart = new d3.OrgChart().container('.chart-container').data(chartData)
                     .nodeWidth(d => (d.data.spouses && d.data.spouses.length > 0) ? 220 + (d.data.spouses.length * 260) : 220)
-                    .initialZoom(0.8).nodeHeight(d => 135).childrenMargin(d => 60)
-                    .compact(false) // Mematikan tumpukan Compact agar garis tidak ditarik dari samping
+                    .initialZoom(0.8).nodeHeight(d => 135).childrenMargin(d => 60).compact(false)
                     .linkUpdate(function (d, i, arr) {
                         const path = d3.select(this);
                         path.attr("stroke", "#9ca3af")
                             .attr("stroke-width", 2)
                             .attr("fill", "none");
                             
-                        if (d && d.target && d.target.data) {
+                        if (d && d.target && d.target.data && d.source && d.source.data) {
                             const dAttr = path.attr("d");
                             if (dAttr) {
                                 const coords = dAttr.match(/[-+]?\d*\.?\d+/g);
                                 if (coords && coords.length >= 4) {
-                                    // Titik awal (di atas, tengah Parent)
-                                    const startX = coords[0];
                                     const startY = coords[1];
-                                    
-                                    // Titik akhir (di bawah, menuju Anak)
                                     const endY = coords[coords.length - 1];
 
-                                    // PERBAIKAN: Mengarahkan garis persis ke atas tengah foto anak biologis
-                                    const spousesCount = d.target.data.spouses ? d.target.data.spouses.length : 0;
-                                    const targetWidth = spousesCount > 0 ? 220 + (spousesCount * 260) : 220;
-                                    
-                                    // Kalkulasi agar jatuhnya tepat di tengah kotak utama (mengabaikan lebar pasangan di sampingnya)
+                                    // PERBAIKAN START X: Agar selalu jatuh tepat dari orang tua biologis (mengabaikan lebar pasangan ortu)
+                                    const sourceWidth = d.source.width;
+                                    const startX = (d.source.x - sourceWidth / 2) + 110;
+
+                                    // PERBAIKAN END X: Agar selalu mendarat tepat ke anak biologis (mengabaikan lebar pasangan anak)
+                                    const targetSpousesCount = d.target.data.spouses ? d.target.data.spouses.length : 0;
+                                    const targetWidth = targetSpousesCount > 0 ? 220 + (targetSpousesCount * 260) : 220;
                                     const endX = (d.target.x - targetWidth / 2) + 110; 
 
-                                    // Gambar garis lurus diagonal, bukan siku-siku
+                                    // Menggambar garis lurus diagonal, bukan siku-siku
                                     path.attr("d", `M ${startX},${startY} L ${endX},${endY}`);
                                 }
                             }
