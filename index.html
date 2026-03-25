@@ -206,15 +206,15 @@
     
     <!-- SCRIPT CLIENT SIDE (AJAX/REST API) -->
     <script>
-        // MENGUBAH MEKANISME DARI google.script.run KE fetch() API
+        // Konfigurasi Web App URL dan Super Admin
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2ZQ9o6hSnAkkCrDPscsYBc8jFD4rFmPCyDRmGkwCyKJolejDglJFqCdnna9ElpKnAqg/exec';
         const SUPER_ADMIN = "syamsul18782@gmail.com";
         
-        // Deteksi Parameter URL untuk Hosting Statis
+        // Deteksi Parameter URL
         const urlParams = new URLSearchParams(window.location.search);
         let targetEmail = urlParams.get('email') || ""; 
         
-        // Prioritaskan URL Parameter. Jika kosong, panggil dari Session Storage
+        // Prioritaskan URL Parameter, Jika kosong ambil dari Session Storage agar F5 aman
         if (targetEmail) {
             sessionStorage.setItem('familyTree_targetEmail', targetEmail);
         } else {
@@ -231,7 +231,7 @@
         // --- FUNGSI HELPER UNTUK API CALL ---
         async function apiCall(payload) {
             try {
-                // Menggunakan mode text/plain untuk menghindari isu CORS Preflight di GitHub Pages
+                // Gunakan mode text/plain untuk mengindari masalah CORS preflight
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -246,7 +246,7 @@
             }
         }
 
-        // 2. Window Onload (Pemuatan Halaman)
+        // --- WINDOW ONLOAD ---
         window.onload = function() {
             // Pulihkan sesi Login (dari Local Storage)
             const savedUser = localStorage.getItem('familyTree_user');
@@ -279,7 +279,7 @@
             }
         };
 
-        // 3. Evaluasi Hak Akses
+        // --- EVALUASI HAK AKSES ---
         function evaluateRole() {
             let roleBadgeObj = document.getElementById('roleBadge');
 
@@ -313,7 +313,7 @@
             }
         }
 
-        // 4. UI Controls
+        // --- UI CONTROLS ---
         function openLoginModal() { document.getElementById('loginModal').classList.remove('hidden'); }
         function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
         
@@ -321,7 +321,7 @@
             targetEmail = "";
             sessionStorage.removeItem('familyTree_targetEmail');
             
-            // Bersihkan URL dari parameter tanpa mereload halaman
+            // Bersihkan URL parameter tanpa reload halaman
             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             window.history.pushState({path:newUrl}, '', newUrl);
 
@@ -382,7 +382,7 @@
 
         function logoutSSO() {
             currentUser = ""; isSuperAdmin = false; isOwner = false;
-            localStorage.removeItem('familyTree_user'); // Hapus sesi
+            localStorage.removeItem('familyTree_user'); 
             
             document.getElementById('btnLogin').classList.remove('hidden');
             document.getElementById('btnLogout').classList.add('hidden');
@@ -413,7 +413,7 @@
                 currentUser = payload.email;
                 isSuperAdmin = (currentUser === SUPER_ADMIN);
                 
-                // Simpan Sesi ke Local Storage
+                // Simpan sesi login
                 localStorage.setItem('familyTree_user', JSON.stringify({
                     email: currentUser,
                     isSuperAdmin: isSuperAdmin
@@ -442,7 +442,7 @@
             }
         };
 
-        // 5. Layar Selamat Datang (Hero Section)
+        // --- LAYAR SELAMAT DATANG (HERO SECTION) ---
         function tampilkanWelcomeScreen() {
             document.getElementById('loadingChart').style.display = 'none';
             document.getElementById('treeContainer').style.display = 'block';
@@ -492,7 +492,7 @@
             `;
         }
 
-        // 6. Manipulasi Data melalui API GAS
+        // --- MANIPULASI DATA DARI API ---
         function loadData() {
             if(!targetEmail) return;
             document.getElementById('loadingChart').style.display = 'flex';
@@ -625,7 +625,7 @@
 
         function copyShareLink() {
             if(!targetEmail) return Swal.fire('Oops', 'Silsilah belum dipilih.', 'info');
-            // Menyesuaikan URL untuk disalin sesuai URL hosting GitHub Pages pengguna!
+            // Menyesuaikan URL untuk disalin berdasarkan lokasi file GitHub Pages saat ini
             const url = window.location.origin + window.location.pathname + "?email=" + targetEmail;
             navigator.clipboard.writeText(url).then(() => {
                 Swal.fire({ title: 'Tersalin!', text: 'Link GitHub Pages siap dibagikan.', icon: 'success', timer: 3000 });
@@ -693,7 +693,7 @@
             }).then((result) => {
                 if (result.isConfirmed && result.value) {
                     targetEmail = result.value;
-                    sessionStorage.setItem('familyTree_targetEmail', targetEmail); // Simpan state
+                    sessionStorage.setItem('familyTree_targetEmail', targetEmail);
                     
                     // Update URL agar bisa dishare
                     const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?email=' + targetEmail;
