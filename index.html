@@ -665,7 +665,7 @@
                 mappedNodes.set(d.ID_Anggota, {
                     id: d.ID_Anggota, parentId: d.ID_Parent || "", name: safeName, positionName: d.HubunganDinamis || "Kerabat",
                     imageUrl: d.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(safeName) + "&background=random",
-                    gender: d.Jenis_Kelamin, spouses: [], hasParent: d.ID_Parent !== "", status: d.Status
+                    gender: d.Jenis_Kelamin, spouses: [], crossSpouses: [], hasParent: d.ID_Parent !== "", status: d.Status
                 });
             });
 
@@ -683,6 +683,9 @@
                             if (!connExists) {
                                 crossMarriageConnections.push({ from: node1.id, to: node2.id, label: "Menikah" });
                             }
+                            // TAMBAHAN: Simpan data pasangan besan agar tombol tambah anak bisa dimunculkan
+                            if(!node1.crossSpouses.find(s => s.id === node2.id)) node1.crossSpouses.push({id: node2.id, name: node2.name});
+                            if(!node2.crossSpouses.find(s => s.id === node1.id)) node2.crossSpouses.push({id: node1.id, name: node1.name});
                         } else {
                             let isNode1Parent = parentIds.has(node1.id);
                             let isNode2Parent = parentIds.has(node2.id);
@@ -761,7 +764,7 @@
                     .nodeContent(function(d, i, arr, state) {
                         if (d.data.id === "VIRTUAL_ROOT") return `<div style="display:none;"></div>`;
 
-                        const renderCard = (id, name, position, gender, image, hasParent, status) => {
+                        const renderCard = (id, name, position, gender, image, hasParent, status, crossSpouses) => {
                             const isPending = status === 'Pending';
                             const color = gender === 'L' ? (isPending?'#f8fafc':'#eff6ff') : (isPending?'#fdfbf7':'#fdf2f8'); 
                             const borderColor = isPending ? '#eab308' : (gender === 'L' ? '#3b82f6' : '#ec4899');
@@ -776,6 +779,16 @@
                             let btnHtml = '';
                             if (currentUser && id !== "VIRTUAL_ROOT") {
                                 btnHtml = `<button onclick="openFormModal('${id}', '${escapedName}', null, ${hasParent})" class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-7 h-7 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-md border border-gray-200 hover:bg-gray-100 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Keluarga"><i class="fas fa-plus text-[10px]"></i></button>`;
+                                
+                                // TAMBAHAN: Memunculkan tombol Anak khusus untuk yang memiliki relasi Besan (garis putus-putus)
+                                if (crossSpouses && crossSpouses.length > 0) {
+                                    crossSpouses.forEach((sp, idx) => {
+                                        const escapedCoupleName = String((name || '') + " & " + (sp.name || '')).replace(/'/g, "\\'");
+                                        const escapedSpouseName = String(sp.name || '').replace(/'/g, "\\'");
+                                        const rightPos = 12 + (idx * 32); 
+                                        btnHtml += `<button onclick="openFormModal('${id}', '${escapedCoupleName}', 'Anak', true)" class="absolute -bottom-3 w-7 h-7 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center shadow-md border border-pink-300 hover:bg-pink-200 hover:scale-110 transition z-50 cursor-pointer" style="right: ${rightPos}px;" title="Tambah Anak bersama ${escapedSpouseName}"><i class="fas fa-child text-[10px]"></i></button>`;
+                                    });
+                                }
                             }
 
                             return `
@@ -792,7 +805,7 @@
                         };
 
                         let html = `<div style="display:flex; justify-content:center; align-items:center; width:100%; height:100%;">`;
-                        html += renderCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl, d.data.hasParent, d.data.status);
+                        html += renderCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl, d.data.hasParent, d.data.status, d.data.crossSpouses);
                         
                         if (d.data.spouses && d.data.spouses.length > 0) {
                             d.data.spouses.forEach(sp => {
@@ -805,7 +818,7 @@
                                 }
 
                                 html += `<div style="width:40px; height:4px; background-color:#cbd5e1; position:relative; z-index:0; flex-shrink:0; margin-top:10px;"><div style="position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:white; border-radius:50%; padding:2px; border:2px solid #cbd5e1; z-index:1;"><i class="fas fa-heart text-pink-500 text-[10px]"></i></div>${childBtnHtml}</div>`;
-                                html += renderCard(sp.id, sp.name, sp.positionName, sp.gender, sp.imageUrl, sp.hasParent, sp.status);
+                                html += renderCard(sp.id, sp.name, sp.positionName, sp.gender, sp.imageUrl, sp.hasParent, sp.status, sp.crossSpouses);
                             });
                         }
                         return html + `</div>`;
