@@ -690,17 +690,22 @@
                             if (dAttr) {
                                 const coords = dAttr.match(/[-+]?\d*\.?\d+/g);
                                 if (coords && coords.length >= 4) {
-                                    const startY = coords[1];
-                                    const endY = coords[coords.length - 1];
+                                    const startY = parseFloat(coords[1]);
+                                    const endY = parseFloat(coords[coords.length - 1]);
 
-                                    const sourceWidth = d.source.width;
+                                    // AMAN: Hitung lebar source secara manual karena d.source.width sering kali undefined
+                                    const sourceSpousesCount = d.source.data.spouses ? d.source.data.spouses.length : 0;
+                                    const sourceWidth = sourceSpousesCount > 0 ? 220 + (sourceSpousesCount * 260) : 220;
                                     const startX = (d.source.x - sourceWidth / 2) + 110;
 
+                                    // AMAN: Hitung lebar target secara manual
                                     const targetSpousesCount = d.target.data.spouses ? d.target.data.spouses.length : 0;
                                     const targetWidth = targetSpousesCount > 0 ? 220 + (targetSpousesCount * 260) : 220;
                                     const endX = (d.target.x - targetWidth / 2) + 110; 
 
-                                    path.attr("d", `M ${startX},${startY} L ${endX},${endY}`);
+                                    // Gunakan Cubic Bezier (C) agar garis melengkung siku dengan rapi
+                                    const midY = startY + (endY - startY) / 2;
+                                    path.attr("d", `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`);
                                 }
                             }
                         }
