@@ -617,26 +617,28 @@
                             .attr("stroke-width", 2)
                             .attr("fill", "none");
                             
-                        const dAttr = path.attr("d");
-                        if (dAttr) {
-                            const coords = dAttr.match(/[-+]?\d*\.?\d+/g);
-                            if (coords && coords.length >= 4) {
-                                // Titik awal (di atas, tengah Parent)
-                                const startX = coords[0];
-                                const startY = coords[1];
-                                
-                                // Titik akhir (di bawah, menuju Anak)
-                                const endY = coords[coords.length - 1];
+                        if (d && d.target && d.target.data) {
+                            const dAttr = path.attr("d");
+                            if (dAttr) {
+                                const coords = dAttr.match(/[-+]?\d*\.?\d+/g);
+                                if (coords && coords.length >= 4) {
+                                    // Titik awal (di atas, tengah Parent)
+                                    const startX = coords[0];
+                                    const startY = coords[1];
+                                    
+                                    // Titik akhir (di bawah, menuju Anak)
+                                    const endY = coords[coords.length - 1];
 
-                                // PERBAIKAN: Mengarahkan garis persis ke atas tengah foto anak yang bersangkutan
-                                // d di sini adalah Node Anak (child node)
-                                const spousesCount = d.data.spouses ? d.data.spouses.length : 0;
-                                const targetWidth = spousesCount > 0 ? 220 + (spousesCount * 260) : 220;
-                                // Kalkulasi agar jatuhnya tepat di tengah kotak utama (mengabaikan lebar pasangan)
-                                const endX = (d.x - targetWidth / 2) + 110; 
+                                    // PERBAIKAN: Mengarahkan garis persis ke atas tengah foto anak biologis
+                                    const spousesCount = d.target.data.spouses ? d.target.data.spouses.length : 0;
+                                    const targetWidth = spousesCount > 0 ? 220 + (spousesCount * 260) : 220;
+                                    
+                                    // Kalkulasi agar jatuhnya tepat di tengah kotak utama (mengabaikan lebar pasangan di sampingnya)
+                                    const endX = (d.target.x - targetWidth / 2) + 110; 
 
-                                // Gambar garis lurus diagonal, bukan siku-siku
-                                path.attr("d", `M ${startX},${startY} L ${endX},${endY}`);
+                                    // Gambar garis lurus diagonal, bukan siku-siku
+                                    path.attr("d", `M ${startX},${startY} L ${endX},${endY}`);
+                                }
                             }
                         }
                     })
