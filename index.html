@@ -357,7 +357,7 @@
             } else {
                 activeReferenceNode = { id: refNodeId, name: refNodeName };
                 divPrivasi.classList.add('hidden'); divHubungan.classList.remove('hidden');
-                modalTitle.innerText = "Tambah Kerabat untuk " + refNodeName;
+                modalTitle.innerText = "Tambah Kerabat untuk " + (refNodeName || 'Tanpa Nama');
 
                 selectHubungan.innerHTML = `
                     <option value="OrangTua">👨‍👩‍👧 Tambah Orang Tua (Ayah & Ibu)</option>
@@ -512,8 +512,8 @@
                             let detail = JSON.parse(p.Data_Perubahan_JSON);
                             let targetInfo = isSuperAdmin ? `<br><span class="text-xs text-purple-600 mt-1 inline-block bg-purple-50 px-2 py-0.5 rounded"><b>Super Admin View</b></span>` : '';
                             let actionText = "Penambahan Data";
-                            if(detail.action === 'OrangTua') actionText = `Penambahan Ayah (${detail.ayah.Nama}) & Ibu (${detail.ibu.Nama})`;
-                            else actionText = `Penambahan ${detail.Hubungan} (${detail.Nama})`;
+                            if(detail.action === 'OrangTua') actionText = `Penambahan Ayah (${detail.ayah.Nama || 'Tanpa Nama'}) & Ibu (${detail.ibu.Nama || 'Tanpa Nama'})`;
+                            else actionText = `Penambahan ${detail.Hubungan} (${detail.Nama || 'Tanpa Nama'})`;
 
                             html += `<li class="flex justify-between items-center bg-white p-3.5 rounded-xl border border-yellow-200 shadow-sm"><div class="text-sm text-gray-800"><b>${actionText}</b> diajukan oleh <b class="text-blue-600">${p.Pengaju_Email}</b>${targetInfo}</div><div class="ml-4 flex-shrink-0 flex gap-2"><button onclick="handleProposal('${p.ID_Proposal}', 'approve')" class="text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fas fa-check mr-1"></i> Terima</button><button onclick="handleProposal('${p.ID_Proposal}', 'reject')" class="text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fas fa-times mr-1"></i> Tolak</button></div></li>`;
                         });
@@ -533,7 +533,7 @@
                         html += `
                         <tr class="hover:bg-gray-50 border-b">
                             <td class="px-4 py-3">
-                                <div class="font-bold text-gray-800">${t.nama}</div>
+                                <div class="font-bold text-gray-800">${t.nama || 'Tanpa Nama'}</div>
                                 <div class="text-xs text-gray-500">${t.email}</div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-600 font-mono">${t.treeId}</td>
@@ -602,7 +602,10 @@
                 visited.add(curr.id);
 
                 let person = data.find(d => d.ID_Anggota === curr.id);
-                relations[curr.id] = getTitleFromPath(curr.path, person.Jenis_Kelamin);
+                // TAMBAHAN PROTEKSI UNDEFINED PERSON
+                if (person) {
+                    relations[curr.id] = getTitleFromPath(curr.path, person.Jenis_Kelamin);
+                }
 
                 let edges = graph[curr.id];
                 if(edges) {
@@ -617,11 +620,32 @@
         function getTitleFromPath(path, gender) {
             const dict = {
                 "": "Saya",
-                "S": gender === 'L' ? "Suami" : "Istri", "U": gender === 'L' ? "Ayah" : "Ibu", "US": gender === 'L' ? "Ayah" : "Ibu",
-                "SU": gender === 'L' ? "Mertua (L)" : "Mertua (P)", "D": gender === 'L' ? "Anak (L)" : "Anak (P)", "SD": gender === 'L' ? "Anak (L)" : "Anak (P)",
-                "UD": gender === 'L' ? "Saudara (L)" : "Saudara (P)", "USD": gender === 'L' ? "Saudara (L)" : "Saudara (P)",
-                "UUD": gender === 'L' ? "Paman" : "Bibi", "UUSD": gender === 'L' ? "Paman" : "Bibi", "UU": gender === 'L' ? "Kakek" : "Nenek", "UUS": gender === 'L' ? "Kakek" : "Nenek",
-                "UUDD": "Sepupu", "UDD": "Keponakan", "DD": "Cucu", "UDS": "Ipar", "SUD": "Ipar", "DS": "Menantu", "UUU": "Buyut"
+                "S": gender === 'L' ? "Suami" : "Istri", 
+                "U": gender === 'L' ? "Ayah" : "Ibu", 
+                "US": gender === 'L' ? "Ayah" : "Ibu",
+                "SU": gender === 'L' ? "Mertua (L)" : "Mertua (P)", 
+                "SUS": gender === 'L' ? "Mertua (L)" : "Mertua (P)", // PERBAIKAN: Ibu/Ayah Mertua (Pasangan dari SU)
+                "D": gender === 'L' ? "Anak (L)" : "Anak (P)", 
+                "SD": gender === 'L' ? "Anak (L)" : "Anak (P)",
+                "UD": gender === 'L' ? "Saudara (L)" : "Saudara (P)", 
+                "USD": gender === 'L' ? "Saudara (L)" : "Saudara (P)",
+                "UUD": gender === 'L' ? "Paman" : "Bibi", 
+                "UUSD": gender === 'L' ? "Paman" : "Bibi", 
+                "UU": gender === 'L' ? "Kakek" : "Nenek", 
+                "UUS": gender === 'L' ? "Kakek" : "Nenek",
+                "UUDD": "Sepupu", 
+                "UDD": "Keponakan", 
+                "USDD": "Keponakan", // PERBAIKAN: Keponakan dari jalur ibu
+                "DD": "Cucu", 
+                "SDD": "Cucu", // PERBAIKAN: Cucu yang tercatat via istri/suami
+                "UDS": "Ipar", 
+                "USDS": "Ipar", // PERBAIKAN: Ipar dari saudara jalur ibu
+                "SUD": "Ipar", 
+                "SUSD": "Ipar", // PERBAIKAN: Ipar dari jalur saudara mertua
+                "DS": "Menantu", 
+                "SDS": "Menantu", // PERBAIKAN: Menantu dari anak yang tercatat via pasangan
+                "UUU": "Buyut",
+                "UUUS": "Buyut" // PERBAIKAN: Buyut (pasangan)
             };
             return dict[path] || "Kerabat Jauh";
         }
@@ -636,14 +660,15 @@
 
             const mappedNodes = new Map();
             data.forEach(d => {
+                // TAMBAHAN PROTEKSI UNDEFINED NAME
+                const safeName = d.Nama ? String(d.Nama) : "Tanpa Nama";
                 mappedNodes.set(d.ID_Anggota, {
-                    id: d.ID_Anggota, parentId: d.ID_Parent || "", name: d.Nama, positionName: d.HubunganDinamis,
-                    imageUrl: d.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(d.Nama) + "&background=random",
+                    id: d.ID_Anggota, parentId: d.ID_Parent || "", name: safeName, positionName: d.HubunganDinamis || "Kerabat",
+                    imageUrl: d.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(safeName) + "&background=random",
                     gender: d.Jenis_Kelamin, spouses: [], hasParent: d.ID_Parent !== "", status: d.Status
                 });
             });
 
-            // Menyimpan relasi nikah khusus (Besan)
             let crossMarriageConnections = []; 
 
             data.forEach(d => {
@@ -653,26 +678,19 @@
                     
                     if (!node1.spouses.includes(node2) && !node2.spouses.includes(node1)) {
                         
-                        // KASUS BESAN (Kedua Pasangan Punya Orang Tua Sendiri-Sendiri di Chart)
                         if (node1.hasParent && node2.hasParent) {
-                            // JANGAN DI-MERGE (ditumpuk jadi 1 kotak). Biarkan terpisah jadi 2 garis keturunan berbeda.
-                            // Lalu gambar garis putus-putus untuk menandakan mereka adalah Suami-Istri.
                             const connExists = crossMarriageConnections.some(c => (c.from === node1.id && c.to === node2.id) || (c.from === node2.id && c.to === node1.id));
                             if (!connExists) {
                                 crossMarriageConnections.push({ from: node1.id, to: node2.id, label: "Menikah" });
                             }
                         } else {
-                            // KASUS BIASA (Salah satu numpang ke yang Punya Garis Keturunan Utama)
                             let isNode1Parent = parentIds.has(node1.id);
                             let isNode2Parent = parentIds.has(node2.id);
 
-                            // PRIORITAS UTAMA: Yang PUNYA ORANG TUA (Garis Darah Kandung) harus selalu jadi Main Node!
                             if (node1.hasParent && !node2.hasParent) { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
                             else if (!node1.hasParent && node2.hasParent) { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
-                            // Prioritas Kedua: Yang Punya Anak jadi Main Node
                             else if (isNode1Parent && !isNode2Parent) { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
                             else if (!isNode1Parent && isNode2Parent) { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
-                            // Prioritas Terakhir: "Saya" atau Gender Laki-Laki
                             else {
                                 if (node1.positionName === "Saya") { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
                                 else if (node2.positionName === "Saya") { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
@@ -706,25 +724,26 @@
                     .initialZoom(0.8)
                     .nodeHeight(d => d.data.id === "VIRTUAL_ROOT" ? 1 : 135)
                     .childrenMargin(d => 60).compact(false)
-                    // MENGGAMBAR GARIS BESAN (PERNIKAHAN ANTAR KELUARGA)
                     .connections(crossMarriageConnections)
                     .connectionsUpdate(function (d, i, arr) {
                         d3.select(this)
-                            .attr('stroke', '#ec4899') // Warna Pink (Dashed)
+                            .attr('stroke', '#ec4899') 
                             .attr('stroke-width', 3)
                             .attr('stroke-dasharray', '5, 5')
                             .attr('fill', 'none');
                     })
-                    // MENGGAMBAR GARIS DARAH KANDUNG BAWAAN
                     .linkUpdate(function (d, i, arr) {
                         const path = d3.select(this);
 
+                        // PERBAIKAN: Gunakan display: none agar garis ke Akar Palsu benar-benar musnah tanpa sisa
                         if (d && d.source && d.source.data.id === "VIRTUAL_ROOT") {
-                            path.attr("stroke", "none");
+                            path.attr("display", "none");
                             return;
                         }
 
-                        path.attr("stroke", "#9ca3af")
+                        // Pastikan garis keturunan asli tetap terlihat
+                        path.attr("display", "block")
+                            .attr("stroke", "#9ca3af")
                             .attr("stroke-width", 2)
                             .attr("fill", "none");
                             
@@ -732,10 +751,6 @@
                             const startY = d.source.y + (d.source.height || 135);
                             const endY = d.target.y;
 
-                            // Karena Prioritas Darah kita sudah 100% benar,
-                            // Kotak Utama di sebelah kiri PASTI selalu si Ortu Kandung dan Anak Kandung.
-                            // Maka d.source.x + 110 secara matematis SELALU membidik pusat Kepala Ayah/Ibu kandung.
-                            // dan d.target.x + 110 SELALU membidik pusat Kepala Anak kandung.
                             const startX = d.source.x + 110; 
                             const endX = d.target.x + 110;   
 
@@ -752,7 +767,9 @@
                             const borderColor = isPending ? '#eab308' : (gender === 'L' ? '#3b82f6' : '#ec4899');
                             const borderStyle = isPending ? 'dashed' : 'solid';
                             const iconGen = gender === 'L' ? '<i class="fas fa-mars text-blue-400"></i>' : '<i class="fas fa-venus text-pink-400"></i>';
-                            const escapedName = name.replace(/'/g, "\\'");
+                            
+                            // TAMBAHAN PROTEKSI UNDEFINED KETIKA ME-REPLACE
+                            const escapedName = String(name || '').replace(/'/g, "\\'");
                             
                             const pendingBadge = isPending ? `<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-50 whitespace-nowrap"><i class="fas fa-clock"></i> Verifikasi</div>` : '';
                             
@@ -767,8 +784,8 @@
                                 <div class="absolute top-2 right-2 text-xs opacity-60">${iconGen}</div>
                                 <img src="${image}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-right: 14px;" />
                                 <div style="width:calc(100% - 70px); overflow:hidden;">
-                                    <div style="font-weight: 800; font-size: 15px; color: #1f2937; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" title="${name}">${name}</div>
-                                    <div style="font-size: 11px; color: #6b7280; margin-top: 4px; text-transform: uppercase; font-weight:600; background:white; padding: 2px 6px; border-radius: 4px; display:inline-block; border:1px solid #f3f4f6;">${position}</div>
+                                    <div style="font-weight: 800; font-size: 15px; color: #1f2937; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" title="${name || 'Tanpa Nama'}">${name || 'Tanpa Nama'}</div>
+                                    <div style="font-size: 11px; color: #6b7280; margin-top: 4px; text-transform: uppercase; font-weight:600; background:white; padding: 2px 6px; border-radius: 4px; display:inline-block; border:1px solid #f3f4f6;">${position || 'Kerabat'}</div>
                                 </div>
                                 ${btnHtml}
                             </div>`;
@@ -779,7 +796,9 @@
                         
                         if (d.data.spouses && d.data.spouses.length > 0) {
                             d.data.spouses.forEach(sp => {
-                                const escapedCoupleName = (d.data.name + " & " + sp.name).replace(/'/g, "\\'");
+                                // TAMBAHAN PROTEKSI UNDEFINED KETIKA ME-REPLACE PASANGAN
+                                const escapedCoupleName = String((d.data.name || '') + " & " + (sp.name || '')).replace(/'/g, "\\'");
+                                
                                 let childBtnHtml = '';
                                 if(currentUser) {
                                     childBtnHtml = `<button onclick="openFormModal('${d.data.id}', '${escapedCoupleName}', 'Anak', true)" class="absolute top-3 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white hover:bg-blue-700 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Anak dari Pasangan Ini"><i class="fas fa-child text-[10px]"></i></button>`;
