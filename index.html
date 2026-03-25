@@ -632,11 +632,10 @@
                 "UUD": gender === 'L' ? "Paman" : "Bibi", 
                 "UUSD": gender === 'L' ? "Paman" : "Bibi", 
                 
-                // JALUR KAKEK & NENEK
                 "UU": gender === 'L' ? "Kakek" : "Nenek", 
                 "UUS": gender === 'L' ? "Kakek" : "Nenek",
-                "SUU": gender === 'L' ? "Kakek Mertua" : "Nenek Mertua",  // PERBAIKAN: Orang tua dari mertua
-                "SUUS": gender === 'L' ? "Kakek Mertua" : "Nenek Mertua", // PERBAIKAN: Pasangan orang tua dari mertua
+                "SUU": gender === 'L' ? "Kakek Mertua" : "Nenek Mertua",  
+                "SUUS": gender === 'L' ? "Kakek Mertua" : "Nenek Mertua", 
                 
                 "UUDD": "Sepupu", 
                 "UDD": "Keponakan", 
@@ -673,7 +672,6 @@
 
             const mappedNodes = new Map();
             data.forEach(d => {
-                // TAMBAHAN PROTEKSI UNDEFINED NAME
                 const safeName = d.Nama ? String(d.Nama) : "Tanpa Nama";
                 mappedNodes.set(d.ID_Anggota, {
                     id: d.ID_Anggota, parentId: d.ID_Parent || "", name: safeName, positionName: d.HubunganDinamis || "Kerabat",
@@ -683,6 +681,15 @@
             });
 
             let crossMarriageConnections = []; 
+
+            // SOLUSI BUG ANAK YATIM: Fungsi pengalih jangkar otomatis
+            const repointChildren = (oldId, newId) => {
+                mappedNodes.forEach(node => {
+                    if (node.parentId === oldId) {
+                        node.parentId = newId;
+                    }
+                });
+            };
 
             data.forEach(d => {
                 if (d.ID_Spouse && mappedNodes.has(d.ID_Spouse) && mappedNodes.has(d.ID_Anggota)) {
@@ -696,22 +703,46 @@
                             if (!connExists) {
                                 crossMarriageConnections.push({ from: node1.id, to: node2.id, label: "Menikah" });
                             }
-                            // TAMBAHAN: Simpan data pasangan besan agar tombol tambah anak bisa dimunculkan
                             if(!node1.crossSpouses.find(s => s.id === node2.id)) node1.crossSpouses.push({id: node2.id, name: node2.name});
                             if(!node2.crossSpouses.find(s => s.id === node1.id)) node2.crossSpouses.push({id: node1.id, name: node1.name});
                         } else {
                             let isNode1Parent = parentIds.has(node1.id);
                             let isNode2Parent = parentIds.has(node2.id);
 
-                            if (node1.hasParent && !node2.hasParent) { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
-                            else if (!node1.hasParent && node2.hasParent) { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
-                            else if (isNode1Parent && !isNode2Parent) { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
-                            else if (!isNode1Parent && isNode2Parent) { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
+                            // PENGALIHAN JANGKAR DITERAPKAN DI SETIAP PENGGABUNGAN KOTAK
+                            if (node1.hasParent && !node2.hasParent) { 
+                                node1.spouses.push(node2); mappedNodes.delete(node2.id); 
+                                repointChildren(node2.id, node1.id);
+                            } 
+                            else if (!node1.hasParent && node2.hasParent) { 
+                                node2.spouses.push(node1); mappedNodes.delete(node1.id); 
+                                repointChildren(node1.id, node2.id);
+                            } 
+                            else if (isNode1Parent && !isNode2Parent) { 
+                                node1.spouses.push(node2); mappedNodes.delete(node2.id); 
+                                repointChildren(node2.id, node1.id);
+                            } 
+                            else if (!isNode1Parent && isNode2Parent) { 
+                                node2.spouses.push(node1); mappedNodes.delete(node1.id); 
+                                repointChildren(node1.id, node2.id);
+                            } 
                             else {
-                                if (node1.positionName === "Saya") { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
-                                else if (node2.positionName === "Saya") { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
-                                else if (node1.gender === 'L') { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
-                                else { node2.spouses.push(node1); mappedNodes.delete(node1.id); }
+                                if (node1.positionName === "Saya") { 
+                                    node1.spouses.push(node2); mappedNodes.delete(node2.id); 
+                                    repointChildren(node2.id, node1.id);
+                                } 
+                                else if (node2.positionName === "Saya") { 
+                                    node2.spouses.push(node1); mappedNodes.delete(node1.id); 
+                                    repointChildren(node1.id, node2.id);
+                                } 
+                                else if (node1.gender === 'L') { 
+                                    node1.spouses.push(node2); mappedNodes.delete(node2.id); 
+                                    repointChildren(node2.id, node1.id);
+                                } 
+                                else { 
+                                    node2.spouses.push(node1); mappedNodes.delete(node1.id); 
+                                    repointChildren(node1.id, node2.id);
+                                }
                             }
                         }
                     }
@@ -751,13 +782,11 @@
                     .linkUpdate(function (d, i, arr) {
                         const path = d3.select(this);
 
-                        // PERBAIKAN: Gunakan display: none agar garis ke Akar Palsu benar-benar musnah tanpa sisa
                         if (d && d.source && d.source.data.id === "VIRTUAL_ROOT") {
                             path.attr("display", "none");
                             return;
                         }
 
-                        // Pastikan garis keturunan asli tetap terlihat
                         path.attr("display", "block")
                             .attr("stroke", "#9ca3af")
                             .attr("stroke-width", 2)
@@ -784,7 +813,6 @@
                             const borderStyle = isPending ? 'dashed' : 'solid';
                             const iconGen = gender === 'L' ? '<i class="fas fa-mars text-blue-400"></i>' : '<i class="fas fa-venus text-pink-400"></i>';
                             
-                            // TAMBAHAN PROTEKSI UNDEFINED KETIKA ME-REPLACE
                             const escapedName = String(name || '').replace(/'/g, "\\'");
                             
                             const pendingBadge = isPending ? `<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-50 whitespace-nowrap"><i class="fas fa-clock"></i> Verifikasi</div>` : '';
@@ -795,7 +823,6 @@
                             if (currentUser && id !== "VIRTUAL_ROOT") {
                                 btnHtml = `<button onclick="openFormModal('${id}', '${escapedName}', null, ${hasParent})" class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-7 h-7 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-md border border-gray-200 hover:bg-gray-100 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Keluarga"><i class="fas fa-plus text-[10px]"></i></button>`;
                                 
-                                // TAMBAHAN: Memunculkan tombol Anak khusus untuk yang memiliki relasi Besan (garis putus-putus)
                                 if (crossSpouses && crossSpouses.length > 0) {
                                     crossSpouses.forEach((sp, idx) => {
                                         const escapedCoupleName = String((name || '') + " & " + (sp.name || '')).replace(/'/g, "\\'");
@@ -806,7 +833,6 @@
                                 }
                             }
 
-                            // TOMBOL EDIT & DELETE KHUSUS ADMIN
                             if (isAdmin && id !== "VIRTUAL_ROOT") {
                                 actionBtns = `
                                 <div class="absolute top-2 left-2 flex gap-1 z-50">
@@ -834,7 +860,6 @@
                         
                         if (d.data.spouses && d.data.spouses.length > 0) {
                             d.data.spouses.forEach(sp => {
-                                // TAMBAHAN PROTEKSI UNDEFINED KETIKA ME-REPLACE PASANGAN
                                 const escapedCoupleName = String((d.data.name || '') + " & " + (sp.name || '')).replace(/'/g, "\\'");
                                 
                                 let childBtnHtml = '';
@@ -874,7 +899,6 @@
 
             const file = document.getElementById('foto').files[0];
             if (file) {
-                // Proses kompresi gambar secara otomatis dengan Canvas
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
                 reader.onload = function(event) {
@@ -882,7 +906,7 @@
                     img.src = event.target.result;
                     img.onload = function() {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 600; // Lebar maksimal gambar diresize
+                        const MAX_WIDTH = 600;
                         let width = img.width;
                         let height = img.height;
 
@@ -897,7 +921,6 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
                         
-                        // Konversi menjadi JPEG dengan kualitas 70% agar ukurannya kecil
                         formData.fotoBase64 = canvas.toDataURL('image/jpeg', 0.7); 
                         formData.fotoName = file.name;
                         sendDataToServer(formData);
@@ -949,7 +972,6 @@
             });
         }
 
-        // FUNGSI PROMPT EDIT & DELETE
         function editNodePrompt(id, currentName) {
             Swal.fire({
                 title: 'Edit Nama',
