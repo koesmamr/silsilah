@@ -343,10 +343,13 @@
                     selectHubungan.innerHTML = `<option value="Anak">🧒 Tambah Anak</option>`;
                     selectHubungan.value = 'Anak';
                 } else {
+                    const optSaudara = selectHubungan.querySelector('option[value="Saudara"]');
                     if (hasParent) {
                         selectHubungan.querySelector('option[value="OrangTua"]').classList.add('hidden');
+                        if(optSaudara) { optSaudara.disabled = false; optSaudara.text = "👫 Tambah Saudara (Kakak/Adik)"; }
                         selectHubungan.value = 'Pasangan';
                     } else {
+                        if(optSaudara) { optSaudara.disabled = true; optSaudara.text = "👫 Tambah Saudara (Isi Orang Tua Dulu)"; }
                         selectHubungan.value = 'OrangTua';
                     }
                 }
