@@ -171,7 +171,7 @@
         const SUPER_ADMIN = "syamsul18782@gmail.com";
         
         let currentTreeId = ""; 
-        let treeOwnerEmail = ""; // Menyimpan Email asli si Pemilik
+        let treeOwnerEmail = ""; 
         let currentUser = "";
         let isSuperAdmin = false;
         let isStrictOwner = false;
@@ -219,7 +219,7 @@
                 } catch(e) { localStorage.removeItem('familyTree_user'); }
             }
             evaluateRole();
-            handleHashChange(); // Jalankan routing
+            handleHashChange(); 
         };
 
         function evaluateRole(fetchedAdmins = [], fetchedOwner = "") {
@@ -407,9 +407,6 @@
                 evaluateRole(); Swal.close();
                 if(currentTreeId) {
                     loadData(); 
-                } else {
-                    // Jika baru login dan belum ada tree, check apakah dia punya tree di backend
-                    // Karena kita butuh Tree_ID, kita tidak langsung load. Kita persilakan dia klik "Mulai Silsilah Baru"
                 }
             } catch (e) { Swal.fire('Error', 'Gagal memproses login', 'error'); }
         };
@@ -461,14 +458,13 @@
                     treeOwnerEmail = res.ownerEmail;
                     document.getElementById('ownerNameDisplay').innerText = res.ownerName || currentTreeId;
                     
-                    // Update Role Evaluation based on fresh backend data
                     evaluateRole(res.admins, treeOwnerEmail);
 
                     familyDataCache = JSON.parse(res.data);
                     const processedData = calculateDynamicRelations(familyDataCache, treeOwnerEmail);
                     renderTree(processedData);
                     
-                    if (isAdmin) loadProposals(); // Only admins can see proposals
+                    if (isAdmin) loadProposals(); 
                 } else { Swal.fire('Error', res.message, 'error'); kembaliKeBeranda(); }
             }).catch(err => { Swal.fire('Server Error', err.message, 'error'); });
         }
@@ -484,8 +480,6 @@
                         proposals.forEach(p => {
                             let detail = JSON.parse(p.Data_Perubahan_JSON);
                             let targetInfo = isSuperAdmin ? `<br><span class="text-xs text-purple-600 mt-1 inline-block bg-purple-50 px-2 py-0.5 rounded"><b>Super Admin View</b></span>` : '';
-                            
-                            // Visualisasi cantik jenis usulan
                             let actionText = "Penambahan Data";
                             if(detail.action === 'OrangTua') actionText = `Penambahan Ayah (${detail.ayah.Nama}) & Ibu (${detail.ibu.Nama})`;
                             else actionText = `Penambahan ${detail.Hubungan} (${detail.Nama})`;
@@ -520,21 +514,14 @@
         // =========================================================================
         function calculateDynamicRelations(data, ownerEmail) {
             if (data.length === 0) return data;
-            
             let rootNode = data.find(d => d.Owner_Email === ownerEmail && d.Hubungan === 'Saya');
             if (!rootNode) rootNode = data[0]; 
 
             let graph = {};
             data.forEach(d => graph[d.ID_Anggota] = { up: [], down: [], spouse: [] });
             data.forEach(d => {
-                if (d.ID_Parent) {
-                    graph[d.ID_Anggota].up.push(d.ID_Parent);
-                    if (graph[d.ID_Parent]) graph[d.ID_Parent].down.push(d.ID_Anggota);
-                }
-                if (d.ID_Spouse) {
-                    graph[d.ID_Anggota].spouse.push(d.ID_Spouse);
-                    if (graph[d.ID_Spouse]) graph[d.ID_Spouse].spouse.push(d.ID_Anggota);
-                }
+                if (d.ID_Parent) { graph[d.ID_Anggota].up.push(d.ID_Parent); if (graph[d.ID_Parent]) graph[d.ID_Parent].down.push(d.ID_Anggota); }
+                if (d.ID_Spouse) { graph[d.ID_Anggota].spouse.push(d.ID_Spouse); if (graph[d.ID_Spouse]) graph[d.ID_Spouse].spouse.push(d.ID_Anggota); }
             });
 
             let queue = [{ id: rootNode.ID_Anggota, path: "" }];
@@ -556,7 +543,6 @@
                     edges.spouse.forEach(n => queue.push({ id: n, path: curr.path + "S" }));
                 }
             }
-
             return data.map(d => ({ ...d, HubunganDinamis: relations[d.ID_Anggota] || "Kerabat" }));
         }
 
@@ -573,7 +559,7 @@
         }
 
         // =========================================================================
-        // VISUALISASI BAGAN
+        // VISUALISASI BAGAN (D3.js dengan modifikasi Path Generator bentuk V)
         // =========================================================================
         function renderTree(data) {
             document.getElementById('loadingChart').style.display = 'none';
@@ -628,6 +614,26 @@
                 chart = new d3.OrgChart().container('.chart-container').data(chartData)
                     .nodeWidth(d => (d.data.spouses && d.data.spouses.length > 0) ? 220 + (d.data.spouses.length * 260) : 220)
                     .initialZoom(0.8).nodeHeight(d => 135).childrenMargin(d => 50).compactMarginBetween(d => 30).compactMarginPair(d => 30)
+                    // FUNGSI MODIFIKASI GARIS CABANG DARI ELBOW MENJADI DIAGONAL/LURUS (BENTUK V)
+                    .linkUpdate(function (d, i, arr) {
+                        const path = d3.select(this);
+                        path.attr("stroke", "#9ca3af")
+                            .attr("stroke-width", 2)
+                            .attr("fill", "none");
+                            
+                        const dAttr = path.attr("d");
+                        if (dAttr) {
+                            const coords = dAttr.match(/[-+]?\d*\.?\d+/g);
+                            if (coords && coords.length >= 4) {
+                                const startX = coords[0];
+                                const startY = coords[1];
+                                const endX = coords[coords.length - 2];
+                                const endY = coords[coords.length - 1];
+                                // Menghapus bentuk horizontal siku-siku, mengganti dengan garis diagonal lurus
+                                path.attr("d", `M ${startX},${startY} L ${endX},${endY}`);
+                            }
+                        }
+                    })
                     .nodeContent(function(d, i, arr, state) {
                         const renderCard = (id, name, position, gender, image, hasParent, status) => {
                             const isPending = status === 'Pending';
@@ -710,7 +716,7 @@
             apiCall({ action: 'processFamilyData', formData: formData }).then(res => {
                 closeFormModal();
                 if(res.success && res.newTreeId && !currentTreeId) {
-                    window.location.hash = res.newTreeId; // Navigate to new tree
+                    window.location.hash = res.newTreeId; 
                     Swal.fire({ title: 'Berhasil!', text: res.message, icon: 'success' });
                 } else {
                     Swal.fire({ title: res.success ? 'Berhasil!' : 'Gagal', text: res.message, icon: res.success ? 'success' : 'error' });
