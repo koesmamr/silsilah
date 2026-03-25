@@ -189,7 +189,6 @@
             }
         }
 
-        // Deteksi Perubahan Hash di URL (Routing Dinamis)
         function handleHashChange() {
             let hash = window.location.hash.substring(1);
             if (hash) {
@@ -509,9 +508,6 @@
             });
         }
 
-        // =========================================================================
-        // ENGINE RELASI DINAMIS BERBASIS GRAF (BFS PATHFINDING)
-        // =========================================================================
         function calculateDynamicRelations(data, ownerEmail) {
             if (data.length === 0) return data;
             let rootNode = data.find(d => d.Owner_Email === ownerEmail && d.Hubungan === 'Saya');
@@ -559,7 +555,7 @@
         }
 
         // =========================================================================
-        // VISUALISASI BAGAN (D3.js dengan modifikasi Path Generator bentuk V)
+        // VISUALISASI BAGAN - PERBAIKAN RENDER GARIS (PATH GENERATOR)
         // =========================================================================
         function renderTree(data) {
             document.getElementById('loadingChart').style.display = 'none';
@@ -614,7 +610,7 @@
                 chart = new d3.OrgChart().container('.chart-container').data(chartData)
                     .nodeWidth(d => (d.data.spouses && d.data.spouses.length > 0) ? 220 + (d.data.spouses.length * 260) : 220)
                     .initialZoom(0.8).nodeHeight(d => 135).childrenMargin(d => 60)
-                    .compact(false) // SOLUSI 1: Mematikan mode rapat agar garis tidak menempel ke samping
+                    .compact(false) // Mematikan tumpukan Compact agar garis tidak ditarik dari samping
                     .linkUpdate(function (d, i, arr) {
                         const path = d3.select(this);
                         path.attr("stroke", "#9ca3af")
@@ -625,19 +621,21 @@
                         if (dAttr) {
                             const coords = dAttr.match(/[-+]?\d*\.?\d+/g);
                             if (coords && coords.length >= 4) {
-                                // Titik awal (Tengah bawah kotak Parent/Garis Pasangan)
+                                // Titik awal (di atas, tengah Parent)
                                 const startX = coords[0];
                                 const startY = coords[1];
                                 
-                                // Titik akhir Y (Bagian atas kotak anak)
+                                // Titik akhir (di bawah, menuju Anak)
                                 const endY = coords[coords.length - 1];
 
-                                // SOLUSI 2: Titik akhir X dipaksa mendarat persis di atas-tengah kotak foto Anak (bukan di tengah seluruh pasangan)
-                                const spousesCount = d.target.data.spouses ? d.target.data.spouses.length : 0;
+                                // PERBAIKAN: Mengarahkan garis persis ke atas tengah foto anak yang bersangkutan
+                                // d di sini adalah Node Anak (child node)
+                                const spousesCount = d.data.spouses ? d.data.spouses.length : 0;
                                 const targetWidth = spousesCount > 0 ? 220 + (spousesCount * 260) : 220;
-                                const endX = (d.target.x - targetWidth / 2) + 110; // 110px adalah titik tengah dari kotak 220px
+                                // Kalkulasi agar jatuhnya tepat di tengah kotak utama (mengabaikan lebar pasangan)
+                                const endX = (d.x - targetWidth / 2) + 110; 
 
-                                // SOLUSI 3: Mengganti garis menyiku (horizontal) menjadi garis lurus diagonal (Bentuk V / Payung)
+                                // Gambar garis lurus diagonal, bukan siku-siku
                                 path.attr("d", `M ${startX},${startY} L ${endX},${endY}`);
                             }
                         }
