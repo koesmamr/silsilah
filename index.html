@@ -161,7 +161,7 @@
                             <label class="block text-sm font-bold text-gray-700">Nama Lengkap</label>
                             <input type="text" id="nama" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 border bg-gray-50">
                         </div>
-                        <div>
+                        <div id="jenisKelaminDiv">
                             <label class="block text-sm font-bold text-gray-700">Jenis Kelamin</label>
                             <select id="jenisKelamin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 border bg-gray-50 font-medium">
                                 <option value="L">Laki-laki (L)</option>
@@ -280,6 +280,9 @@
 
         function toggleFormFields() {
             const jenis = document.getElementById('jenisTambah').value;
+            const genderDiv = document.getElementById('jenisKelaminDiv');
+            const genderSelect = document.getElementById('jenisKelamin');
+            
             if (jenis === 'OrangTua') {
                 document.getElementById('singlePersonGroup').classList.add('hidden');
                 document.getElementById('parentsGroup').classList.remove('hidden');
@@ -292,6 +295,18 @@
                 document.getElementById('nama').required = true;
                 document.getElementById('namaAyah').required = false;
                 document.getElementById('namaIbu').required = false;
+                
+                // LOGIKA OTOMATISASI PASANGAN BERBEDA JENIS KELAMIN
+                if (jenis === 'Pasangan' && activeReferenceNode) {
+                    const refPerson = familyDataCache.find(d => d.ID_Anggota === activeReferenceNode.id);
+                    if (refPerson) {
+                        const oppositeGender = (refPerson.Jenis_Kelamin === 'L') ? 'P' : 'L';
+                        genderSelect.value = oppositeGender;
+                        genderDiv.classList.add('hidden'); // Sembunyikan pilihan, agar sistem mengunci otomatis.
+                    }
+                } else {
+                    genderDiv.classList.remove('hidden'); // Tampilkan form gender kembali.
+                }
             }
         }
 
@@ -356,13 +371,52 @@
         
         function closeFormModal() { document.getElementById('memberModal').classList.add('hidden'); document.getElementById('familyForm').reset(); activeReferenceNode = null; }
 
+        // ==============================================================
+        // FUNGSI LOGOUT PROFESIONAL (PEMUTUSAN SESI SSO SECARA PENUH)
+        // ==============================================================
         function logoutSSO() {
-            currentUser = ""; isSuperAdmin = false; isOwner = false; localStorage.removeItem('familyTree_user'); 
-            document.getElementById('btnLogin').classList.remove('hidden'); document.getElementById('btnLogout').classList.add('hidden');
-            document.getElementById('userEmailBadge').classList.add('hidden'); document.getElementById('btnSuperAdmin').classList.add('hidden');
-            document.getElementById('proposalContainer').classList.add('hidden');
-            evaluateRole(); Swal.fire({toast:true, position:'top-end', icon:'success', title:'Logout Berhasil', showConfirmButton:false, timer:2000});
-            if(targetEmail) loadData(); else tampilkanWelcomeScreen();
+            Swal.fire({
+                title: 'Konfirmasi Logout',
+                text: "Apakah Anda yakin ingin keluar dari sesi sistem ini?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#e74c3c',
+                cancelButtonColor: '#85929e',
+                confirmButtonText: 'Ya, Keluar',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // 1. Tampilkan animasi pemrosesan
+                    Swal.fire({ title: 'Memproses Logout...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+                    // 2. Putuskan Sesi Auto-Select Google SSO (Agar user dipaksa pilih akun lagi saat login)
+                    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                        google.accounts.id.disableAutoSelect();
+                    }
+
+                    // 3. Bersihkan memori lokal aplikasi
+                    currentUser = ""; 
+                    isSuperAdmin = false; 
+                    isOwner = false; 
+                    localStorage.removeItem('familyTree_user'); 
+                    
+                    // 4. Update Tampilan Navigasi
+                    document.getElementById('btnLogin').classList.remove('hidden'); 
+                    document.getElementById('btnLogout').classList.add('hidden');
+                    document.getElementById('userEmailBadge').classList.add('hidden'); 
+                    document.getElementById('btnSuperAdmin').classList.add('hidden');
+                    document.getElementById('proposalContainer').classList.add('hidden');
+                    
+                    evaluateRole(); 
+                    
+                    // 5. Berikan Notifikasi Kesuksesan dengan Delay Singkat (UX Profesional)
+                    setTimeout(() => {
+                        Swal.fire({toast:true, position:'top-end', icon:'success', title:'Anda berhasil logout.', showConfirmButton:false, timer:2500});
+                        // Jika sedang melihat silsilah publik (via link), reload data agar tombol edit hilang. Jika tidak, ke Beranda.
+                        if(targetEmail) loadData(); else tampilkanWelcomeScreen();
+                    }, 800);
+                }
+            });
         }
 
         function decodeJwtResponse(token) {
@@ -459,16 +513,13 @@
 
         // =========================================================================
         // ENGINE RELASI DINAMIS BERBASIS GRAF (BFS PATHFINDING)
-        // Mengidentifikasi 'Saya' sebagai titik 0, dan menghitung gelar keluarga
         // =========================================================================
         function calculateDynamicRelations(data, ownerEmail) {
             if (data.length === 0) return data;
             
-            // 1. Cari titik Root (Saya)
             let rootNode = data.find(d => d.Owner_Email === ownerEmail && d.Hubungan === 'Saya');
             if (!rootNode) rootNode = data[0]; 
 
-            // 2. Bangun Peta Hubungan
             let graph = {};
             data.forEach(d => graph[d.ID_Anggota] = { up: [], down: [], spouse: [] });
             data.forEach(d => {
@@ -482,7 +533,6 @@
                 }
             });
 
-            // 3. Jelajahi Node dengan BFS
             let queue = [{ id: rootNode.ID_Anggota, path: "" }];
             let visited = new Set();
             let relations = {};
@@ -543,9 +593,7 @@
 
             const spouses = data.filter(d => d.ID_Spouse);
             const mainNodes = data.filter(d => !d.ID_Spouse || d.HubunganDinamis === "Saya" || !spouses.some(s => s.ID_Spouse === d.ID_Anggota && s.Timestamp > d.Timestamp)); 
-            // Trik untuk memfilter salah satu pasangan saja sebagai Node Utama
             
-            // Map data
             const mappedNodes = new Map();
             data.forEach(d => {
                 mappedNodes.set(d.ID_Anggota, {
@@ -555,22 +603,19 @@
                 });
             });
 
-            // Pasangkan Spouse
             data.forEach(d => {
                 if (d.ID_Spouse && mappedNodes.has(d.ID_Spouse) && mappedNodes.has(d.ID_Anggota)) {
-                    // Masukkan ke array Spouses Node Induk jika belum ada
                     const main = mappedNodes.get(d.ID_Spouse);
                     const sp = mappedNodes.get(d.ID_Anggota);
                     if (!main.spouses.includes(sp) && !sp.spouses.includes(main)) {
                         main.spouses.push(sp);
-                        mappedNodes.delete(d.ID_Anggota); // Buang dari node utama karena akan dirender di samping
+                        mappedNodes.delete(d.ID_Anggota); 
                     }
                 }
             });
 
             let chartData = Array.from(mappedNodes.values());
 
-            // Handle VIRTUAL ROOT untuk Mencegah Error D3
             let rootNodesCount = 0;
             chartData.forEach(d => { if (d.parentId === "") rootNodesCount++; });
             if (rootNodesCount > 1) {
