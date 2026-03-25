@@ -110,12 +110,13 @@
                 </h1>
                 <p class="text-sm text-gray-500 mt-2">Hak Akses Anda: <span id="roleBadge" class="font-semibold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">Guest (Publik)</span></p>
             </div>
-            <button onclick="openFormModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-md font-medium transition flex items-center transform hover:-translate-y-0.5">
+            <!-- Tombol Tambah Anggota diubah perilakunya -->
+            <button onclick="handleTopAddButton()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-md font-medium transition flex items-center transform hover:-translate-y-0.5">
                 <i class="fa-solid fa-plus mr-2"></i> Tambah Anggota
             </button>
         </div>
 
-        <!-- Proposals Alert (Only visible to Owner / Super Admin) -->
+        <!-- Proposals Alert -->
         <div id="proposalContainer" class="hidden mb-6 animate-fade-in">
             <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-sm">
                 <div class="flex">
@@ -143,12 +144,13 @@
     <div id="memberModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto border border-gray-100">
             <div class="flex justify-between items-center mb-5 border-b pb-3">
-                <h2 class="text-xl font-bold text-gray-800" id="modalTitle">Tambah Anggota Keluarga</h2>
+                <h2 class="text-xl font-bold text-gray-800" id="modalTitle">Buat Silsilah Baru</h2>
                 <button onclick="closeFormModal()" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
             
             <form id="familyForm" onsubmit="submitForm(event)">
                 <div class="space-y-4">
+                    <!-- Hanya muncul jika Silsilah Baru -->
                     <div id="privasiDiv" class="hidden bg-blue-50 p-3 rounded-lg border border-blue-100 mb-2">
                         <label class="block text-sm font-bold text-blue-800 mb-1"><i class="fas fa-shield-alt mr-1"></i> Pengaturan Privasi Silsilah</label>
                         <p class="text-xs text-blue-600 mb-2">Pilih visibilitas silsilah yang Anda buat ini.</p>
@@ -163,28 +165,22 @@
                         <input type="text" id="nama" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50">
                     </div>
                     
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700">Jenis Kelamin</label>
-                            <select id="jenisKelamin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50">
-                                <option value="L">Laki-laki (L)</option>
-                                <option value="P">Perempuan (P)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700">Hubungan</label>
-                            <select id="hubungan" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50 font-medium text-blue-700">
-                                <option value="Kepala Keluarga">Kepala Keluarga (Root)</option>
-                                <option value="Anak">Anak</option>
-                                <option value="Pasangan">Pasangan (Suami/Istri)</option>
-                            </select>
-                        </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700">Jenis Kelamin</label>
+                        <select id="jenisKelamin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50">
+                            <option value="L">Laki-laki (L)</option>
+                            <option value="P">Perempuan (P)</option>
+                        </select>
                     </div>
-
-                    <div id="parentDiv" class="hidden">
-                        <label id="labelParent" class="block text-sm font-bold text-gray-700">Pilih Orang Tua (Parent)</label>
-                        <select id="idParent" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 border bg-gray-50">
-                            <option value="">-- Pilih --</option>
+                    
+                    <!-- Hanya muncul jika Klik dari Node -->
+                    <div id="hubunganDiv" class="hidden">
+                        <label class="block text-sm font-bold text-gray-700">Hubungan Keluarga</label>
+                        <select id="hubungan" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50 font-medium text-blue-700">
+                            <option value="Anak">Anak</option>
+                            <option value="Pasangan">Pasangan (Suami/Istri)</option>
+                            <option value="Ayah">Ayah</option>
+                            <option value="Ibu">Ibu</option>
                         </select>
                     </div>
 
@@ -210,11 +206,9 @@
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2ZQ9o6hSnAkkCrDPscsYBc8jFD4rFmPCyDRmGkwCyKJolejDglJFqCdnna9ElpKnAqg/exec';
         const SUPER_ADMIN = "syamsul18782@gmail.com";
         
-        // Deteksi Parameter URL
         const urlParams = new URLSearchParams(window.location.search);
         let targetEmail = urlParams.get('email') || ""; 
         
-        // Prioritaskan URL Parameter, Jika kosong ambil dari Session Storage agar F5 aman
         if (targetEmail) {
             sessionStorage.setItem('familyTree_targetEmail', targetEmail);
         } else {
@@ -227,28 +221,25 @@
         let isOwner = false;
         let familyDataCache = [];
         let chart;
+        let activeReferenceNode = null; // Menyimpan Node yang di-klik
 
         // --- FUNGSI HELPER UNTUK API CALL ---
         async function apiCall(payload) {
             try {
-                // Gunakan mode text/plain untuk mengindari masalah CORS preflight
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(payload)
                 });
-                
                 const data = await response.json();
                 return data;
             } catch (error) {
-                console.error(error);
                 throw new Error("Gagal terhubung ke Server Database.");
             }
         }
 
         // --- WINDOW ONLOAD ---
         window.onload = function() {
-            // Pulihkan sesi Login (dari Local Storage)
             const savedUser = localStorage.getItem('familyTree_user');
             if (savedUser) {
                 try {
@@ -268,7 +259,6 @@
 
             evaluateRole();
 
-            // Tentukan View (Beranda vs Tree)
             if (targetEmail) {
                 document.getElementById('mainHeader').classList.remove('hidden');
                 loadData();
@@ -303,14 +293,6 @@
                     roleBadgeObj.className = isOwner ? 'font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded border border-green-200' : 'font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-200';
                 }
             }
-
-            if(!isOwner) {
-                document.getElementById('modalTitle').innerText = "Ajukan Penambahan Anggota";
-                document.getElementById('btnSubmit').innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> Kirim Pengajuan (Proposal)';
-            } else {
-                document.getElementById('modalTitle').innerText = "Tambah Anggota Silsilah";
-                document.getElementById('btnSubmit').innerHTML = '<i class="fa-solid fa-save mr-2"></i> Simpan Langsung';
-            }
         }
 
         // --- UI CONTROLS ---
@@ -321,7 +303,6 @@
             targetEmail = "";
             sessionStorage.removeItem('familyTree_targetEmail');
             
-            // Bersihkan URL parameter tanpa reload halaman
             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             window.history.pushState({path:newUrl}, '', newUrl);
 
@@ -331,9 +312,25 @@
             tampilkanWelcomeScreen();
         }
 
-        function openFormModal() { 
+        function handleTopAddButton() {
+            // Jika kosong, langsung buka modal
+            if (familyDataCache.length === 0) {
+                openFormModal();
+            } else {
+                // Jika sudah ada silsilah, edukasi user untuk klik '+' di node
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Cara Menambahkan Keluarga',
+                    html: '<p class="text-sm">Silakan klik tombol tambah biru <b>(+)</b> yang ada di bagian bawah foto anggota keluarga di dalam bagan silsilah.</p>',
+                    confirmButtonText: 'Mengerti'
+                });
+            }
+        }
+
+        // Fungsi Buka Form (Bisa via Node atau langsung jika baru)
+        function openFormModal(refNodeId = null, refNodeName = null) { 
             if (!currentUser) {
-                Swal.fire({ title: 'Akses Terbatas', text: 'Anda harus Login terlebih dahulu untuk menambah atau mengubah data silsilah.', icon: 'info', confirmButtonText: 'Login Sekarang' }).then((result) => {
+                Swal.fire({ title: 'Akses Terbatas', text: 'Anda harus Login terlebih dahulu untuk menambah silsilah.', icon: 'info', confirmButtonText: 'Login Sekarang' }).then((result) => {
                     if(result.isConfirmed) openLoginModal();
                 });
                 return;
@@ -350,43 +347,38 @@
             
             document.getElementById('memberModal').classList.remove('hidden'); 
             
-            const selectHubungan = document.getElementById('hubungan');
-            if (familyDataCache.length === 0) {
-                selectHubungan.value = 'Kepala Keluarga';
-                selectHubungan.classList.add('pointer-events-none', 'bg-gray-200'); 
-                document.getElementById('privasiDiv').classList.remove('hidden');
+            const divPrivasi = document.getElementById('privasiDiv');
+            const divHubungan = document.getElementById('hubunganDiv');
+            const modalTitle = document.getElementById('modalTitle');
+            const btnSubmit = document.getElementById('btnSubmit');
+
+            if(!isOwner) {
+                btnSubmit.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> Ajukan Proposal';
             } else {
-                selectHubungan.classList.remove('pointer-events-none', 'bg-gray-200');
-                if(selectHubungan.value === 'Kepala Keluarga') selectHubungan.value = 'Anak';
-                document.getElementById('privasiDiv').classList.add('hidden');
+                btnSubmit.innerHTML = '<i class="fa-solid fa-save mr-2"></i> Simpan Data';
             }
-            selectHubungan.dispatchEvent(new Event('change'));
+
+            if (familyDataCache.length === 0) {
+                // Silsilah Baru
+                activeReferenceNode = null;
+                divPrivasi.classList.remove('hidden');
+                divHubungan.classList.add('hidden');
+                modalTitle.innerText = "Buat Silsilah Baru";
+            } else {
+                // Menambahkan Kerabat
+                activeReferenceNode = { id: refNodeId, name: refNodeName };
+                divPrivasi.classList.add('hidden');
+                divHubungan.classList.remove('hidden');
+                modalTitle.innerText = "Tambah Kerabat untuk " + refNodeName;
+                document.getElementById('hubungan').value = "Anak"; // Default
+            }
         }
         
-        function closeFormModal() { document.getElementById('memberModal').classList.add('hidden'); document.getElementById('familyForm').reset(); }
-        
-        document.getElementById('hubungan').addEventListener('change', function(e) {
-            const val = e.target.value;
-            const parentDiv = document.getElementById('parentDiv');
-            const privasiDiv = document.getElementById('privasiDiv');
-            const labelParent = document.getElementById('labelParent');
-            
-            if(val === 'Anak') {
-                parentDiv.classList.remove('hidden'); 
-                document.getElementById('idParent').required = true;
-                labelParent.innerText = 'Pilih Orang Tua (Parent)';
-            } else if (val === 'Pasangan') {
-                parentDiv.classList.remove('hidden'); 
-                document.getElementById('idParent').required = true;
-                labelParent.innerText = 'Pilih Pasangan (Suami/Istri)';
-            } else {
-                parentDiv.classList.add('hidden'); 
-                document.getElementById('idParent').required = false;
-            }
-            
-            if(val === 'Kepala Keluarga' && familyDataCache.length === 0) privasiDiv.classList.remove('hidden');
-            else privasiDiv.classList.add('hidden');
-        });
+        function closeFormModal() { 
+            document.getElementById('memberModal').classList.add('hidden'); 
+            document.getElementById('familyForm').reset(); 
+            activeReferenceNode = null;
+        }
 
         function logoutSSO() {
             currentUser = ""; isSuperAdmin = false; isOwner = false;
@@ -421,7 +413,6 @@
                 currentUser = payload.email;
                 isSuperAdmin = (currentUser === SUPER_ADMIN);
                 
-                // Simpan sesi login
                 localStorage.setItem('familyTree_user', JSON.stringify({
                     email: currentUser,
                     isSuperAdmin: isSuperAdmin
@@ -534,12 +525,10 @@
 
                     familyDataCache = JSON.parse(res.data);
                     renderTree(familyDataCache);
-                    populateDropdowns();
                 } else {
                     Swal.fire('Error', res.message, 'error');
                 }
-            })
-            .catch(err => {
+            }).catch(err => {
                 Swal.fire('Server Error', err.message, 'error');
             });
         }
@@ -574,6 +563,7 @@
             });
         }
 
+        // --- RENDER D3.JS ORG CHART (DENGAN LOGIKA SIDE-BY-SIDE SPOUSE) ---
         function renderTree(data) {
             document.getElementById('loadingChart').style.display = 'none';
             document.getElementById('treeContainer').style.display = 'block';
@@ -583,57 +573,103 @@
                     <div class="flex flex-col h-full items-center justify-center text-gray-500 py-16">
                         <div class="bg-gray-100 p-6 rounded-full mb-4"><i class="fas fa-user-plus text-5xl text-gray-400"></i></div>
                         <h2 class="text-xl font-bold text-gray-700 mb-2">Silsilah Masih Kosong</h2>
-                        <p class="text-sm text-center max-w-sm mb-6">Belum ada anggota yang ditambahkan.</p>
+                        <p class="text-sm text-center max-w-sm mb-6">Silakan buat anggota keluarga pertama.</p>
+                        <button onclick="openFormModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-md font-medium transition">Mulai Silsilah Baru</button>
                     </div>`;
                 return;
             }
 
-            const existingIds = new Set(data.map(d => d.ID_Anggota));
+            // 1. Pisahkan Spouses (Pasangan) dan Main Nodes
+            const spouses = data.filter(d => d.Hubungan === 'Pasangan' && d.ID_Spouse);
+            const mainNodes = data.filter(d => d.Hubungan !== 'Pasangan' || !d.ID_Spouse);
+
+            const existingIds = new Set(mainNodes.map(d => d.ID_Anggota));
             let rootNodesCount = 0;
 
-            const chartData = data.map(d => {
+            // 2. Susun Data Node Utama
+            const chartData = mainNodes.map(d => {
                 let parentId = d.ID_Parent;
-                // Cegah error multiple roots jika parent tidak ada atau tidak valid
-                if (!parentId || !existingIds.has(parentId)) {
-                    parentId = "";
-                    rootNodesCount++;
-                }
+                if (!parentId || !existingIds.has(parentId)) { parentId = ""; rootNodesCount++; }
+                
+                // Cari pasangan untuk node ini
+                const mySpouses = spouses.filter(s => s.ID_Spouse === d.ID_Anggota);
+
                 return {
                     id: d.ID_Anggota, parentId: parentId, name: d.Nama, positionName: d.Hubungan,
                     imageUrl: d.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(d.Nama) + "&background=random",
-                    gender: d.Jenis_Kelamin
+                    gender: d.Jenis_Kelamin,
+                    spouses: mySpouses // Sisipkan array pasangan
                 };
             });
 
-            // PENYELESAIAN ERROR MULTIPLE ROOTS
-            // Jika ada lebih dari 1 orang yang tidak punya parent (misal input pasangan tp tidak dilink)
+            // Handle Pasangan yang tidak ketemu Main Node nya (Orphan spouses error)
+            const matchedSpouseIds = new Set(chartData.flatMap(d => d.spouses.map(s => s.ID_Anggota)));
+            spouses.forEach(s => {
+                if (!matchedSpouseIds.has(s.ID_Anggota)) {
+                    chartData.push({
+                        id: s.ID_Anggota, parentId: "", name: s.Nama, positionName: s.Hubungan,
+                        imageUrl: s.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(s.Nama) + "&background=random",
+                        gender: s.Jenis_Kelamin, spouses: []
+                    });
+                    rootNodesCount++;
+                }
+            });
+
+            // 3. Fallback jika ada multiple roots (Keluarga Besar)
             if (rootNodesCount > 1) {
-                chartData.forEach(d => {
-                    if (d.parentId === "") d.parentId = "VIRTUAL_ROOT";
-                });
+                chartData.forEach(d => { if (d.parentId === "") d.parentId = "VIRTUAL_ROOT"; });
                 chartData.push({
                     id: "VIRTUAL_ROOT", parentId: "", name: "Keluarga Besar", positionName: "Pusat Silsilah",
                     imageUrl: "https://ui-avatars.com/api/?name=Keluarga&background=1d4ed8&color=fff",
-                    gender: "L"
+                    gender: "L", spouses: []
                 });
             }
 
             if (!chart) {
-                chart = new d3.OrgChart().container('.chart-container').data(chartData).nodeWidth(d => 220).initialZoom(0.8).nodeHeight(d => 110).childrenMargin(d => 40).compactMarginBetween(d => 20).compactMarginPair(d => 20)
+                chart = new d3.OrgChart().container('.chart-container').data(chartData)
+                    .nodeWidth(d => (d.data.spouses && d.data.spouses.length > 0) ? 450 : 210) // Lebar dinamis jika ada pasangan
+                    .initialZoom(0.8).nodeHeight(d => 130).childrenMargin(d => 50).compactMarginBetween(d => 25).compactMarginPair(d => 25)
                     .nodeContent(function(d, i, arr, state) {
-                        const color = d.data.gender === 'L' ? '#eff6ff' : '#fdf2f8'; 
-                        const borderColor = d.data.gender === 'L' ? '#3b82f6' : '#ec4899';
-                        const iconGen = d.data.gender === 'L' ? '<i class="fas fa-mars text-blue-400"></i>' : '<i class="fas fa-venus text-pink-400"></i>';
-                        return `
-                            <div class="node-card relative" style="background-color:${color}; border: 2px solid ${borderColor}; border-radius: 12px; width: ${d.width}px; height: ${d.height}px; display: flex; align-items: center; padding: 12px; box-sizing: border-box;">
-                                <div class="absolute top-2 right-2 text-xs opacity-60">${iconGen}</div>
-                                <img src="${d.data.imageUrl}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-right: 14px;" />
-                                <div style="width:calc(100% - 70px); overflow:hidden;">
-                                    <div style="font-weight: 800; font-size: 15px; color: #1f2937; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" title="${d.data.name}">${d.data.name}</div>
-                                    <div style="font-size: 11px; color: #6b7280; margin-top: 4px; text-transform: uppercase; font-weight:600 bg-white px-2 py-0.5 rounded inline-block shadow-sm border border-gray-100">${d.data.positionName}</div>
+                        
+                        // FUNGSI RENDER SATU KOTAK PROFIL
+                        const renderProfileCard = (id, name, position, gender, image) => {
+                            const color = gender === 'L' ? '#eff6ff' : '#fdf2f8'; 
+                            const borderColor = gender === 'L' ? '#3b82f6' : '#ec4899';
+                            const iconGen = gender === 'L' ? '<i class="fas fa-mars text-blue-400"></i>' : '<i class="fas fa-venus text-pink-400"></i>';
+                            const escapedName = name.replace(/'/g, "\\'");
+                            
+                            return `
+                                <div class="relative shadow-md hover:shadow-xl transition" style="background-color:${color}; border: 2px solid ${borderColor}; border-radius: 12px; width: 210px; height: 110px; display: flex; align-items: center; padding: 12px; box-sizing: border-box;">
+                                    <div class="absolute top-2 right-2 text-xs opacity-60">${iconGen}</div>
+                                    <img src="${image}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-right: 14px;" />
+                                    <div style="width:calc(100% - 70px); overflow:hidden;">
+                                        <div style="font-weight: 800; font-size: 15px; color: #1f2937; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" title="${name}">${name}</div>
+                                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px; text-transform: uppercase; font-weight:600; background:white; padding: 2px 6px; border-radius: 4px; display:inline-block; border:1px solid #f3f4f6;">${position}</div>
+                                    </div>
+                                    <!-- Tombol Tambah di Bawah Tengah Node -->
+                                    <button onclick="openFormModal('${id}', '${escapedName}')" class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white hover:bg-blue-700 hover:scale-110 transition z-50 cursor-pointer" title="Tambahkan Kerabat">
+                                        <i class="fas fa-plus text-[10px]"></i>
+                                    </button>
                                 </div>
-                            </div>
-                        `;
+                            `;
+                        };
+
+                        let html = `<div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; gap:15px;">`;
+                        
+                        // Render Main Node
+                        html += renderProfileCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl);
+                        
+                        // Render Spouses di sampingnya
+                        if (d.data.spouses && d.data.spouses.length > 0) {
+                            d.data.spouses.forEach(sp => {
+                                const spImage = sp.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(sp.Nama) + "&background=random";
+                                html += `<div style="color:#ec4899; font-size:24px; display:flex; align-items:center; filter: drop-shadow(0 2px 4px rgba(236,72,153,0.3));"><i class="fas fa-heart"></i></div>`;
+                                html += renderProfileCard(sp.ID_Anggota, sp.Nama, sp.Hubungan, sp.Jenis_Kelamin, spImage);
+                            });
+                        }
+                        
+                        html += `</div>`;
+                        return html;
                     }).render();
             } else {
                 chart.data(chartData).render();
@@ -641,43 +677,53 @@
             }
         }
 
-        function populateDropdowns() {
-            const parentSelect = document.getElementById('idParent');
-            parentSelect.innerHTML = '<option value="">-- Pilih --</option>';
-            familyDataCache.forEach(d => {
-                let opt = document.createElement('option');
-                opt.value = d.ID_Anggota; opt.text = d.Nama + " (" + d.Hubungan + ")";
-                parentSelect.appendChild(opt);
-            });
-        }
-
         function copyShareLink() {
             if(!targetEmail) return Swal.fire('Oops', 'Silsilah belum dipilih.', 'info');
-            // Menyesuaikan URL untuk disalin berdasarkan lokasi file GitHub Pages saat ini
             const url = window.location.origin + window.location.pathname + "?email=" + targetEmail;
             navigator.clipboard.writeText(url).then(() => {
                 Swal.fire({ title: 'Tersalin!', text: 'Link GitHub Pages siap dibagikan.', icon: 'success', timer: 3000 });
             });
         }
 
+        // --- SUBMIT FORM DENGAN LOGIKA HUBUNGAN ---
         function submitForm(e) {
             e.preventDefault();
             const btnSubmit = document.getElementById('btnSubmit');
             btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Mengirim...';
 
-            const file = document.getElementById('foto').files[0];
             let formData = {
                 targetOwnerEmail: targetEmail, pengajuEmail: currentUser,
                 nama: document.getElementById('nama').value, jenisKelamin: document.getElementById('jenisKelamin').value,
-                hubungan: document.getElementById('hubungan').value, idParent: document.getElementById('idParent').value,
-                privasi: document.getElementById('privasiSilsilah').value, fotoBase64: null, fotoName: null
+                fotoBase64: null, fotoName: null,
+                idParent: "", idSpouse: "", idAnak: "", privasi: "Terbuka", hubungan: "Kepala Keluarga"
             };
 
+            // Mapping berdasarkan Reference Node (Node yang di klik)
+            if (familyDataCache.length > 0 && activeReferenceNode) {
+                const hub = document.getElementById('hubungan').value;
+                formData.hubungan = hub;
+                
+                // Jika menambahkan Anak, maka node yang diklik adalah Parentnya
+                if (hub === 'Anak') formData.idParent = activeReferenceNode.id;
+                
+                // Jika menambahkan Pasangan, maka node yang diklik adalah Spousenya
+                if (hub === 'Pasangan') formData.idSpouse = activeReferenceNode.id;
+                
+                // Jika menambahkan Ayah/Ibu, maka node yang diklik menjadi Anak-nya! (Logika Reverse)
+                if (hub === 'Ayah' || hub === 'Ibu') formData.idAnak = activeReferenceNode.id;
+            } else {
+                // Konfigurasi silsilah perdana
+                formData.privasi = document.getElementById('privasiSilsilah').value;
+            }
+
+            const file = document.getElementById('foto').files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) { formData.fotoBase64 = e.target.result; formData.fotoName = file.name; sendDataToServer(formData); };
                 reader.readAsDataURL(file);
-            } else sendDataToServer(formData);
+            } else {
+                sendDataToServer(formData);
+            }
         }
 
         function sendDataToServer(formData) {
@@ -723,7 +769,6 @@
                     targetEmail = result.value;
                     sessionStorage.setItem('familyTree_targetEmail', targetEmail);
                     
-                    // Update URL agar bisa dishare
                     const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?email=' + targetEmail;
                     window.history.pushState({path:newUrl}, '', newUrl);
 
