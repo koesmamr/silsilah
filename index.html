@@ -123,7 +123,6 @@
             
             <form id="familyForm" onsubmit="submitForm(event)">
                 <div class="space-y-4">
-                    <!-- Privasi Silsilah (Saat kosong) -->
                     <div id="privasiDiv" class="hidden bg-blue-50 p-3 rounded-lg border border-blue-100 mb-2">
                         <label class="block text-sm font-bold text-blue-800 mb-1"><i class="fas fa-shield-alt mr-1"></i> Privasi Silsilah</label>
                         <select id="privasiSilsilah" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 p-2 border font-medium text-blue-900">
@@ -132,7 +131,6 @@
                         </select>
                     </div>
 
-                    <!-- Pilihan Hubungan Relatif -->
                     <div id="hubunganDiv" class="hidden">
                         <label class="block text-sm font-bold text-gray-700">Tindakan</label>
                         <select id="jenisTambah" onchange="toggleFormFields()" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 p-2.5 border bg-blue-50 font-bold text-blue-700">
@@ -155,7 +153,7 @@
                         </div>
                     </div>
 
-                    <!-- Grup Input Perorangan (Saya, Pasangan, Saudara, Anak) -->
+                    <!-- Grup Input Perorangan -->
                     <div id="singlePersonGroup" class="space-y-4">
                         <div>
                             <label class="block text-sm font-bold text-gray-700">Nama Lengkap</label>
@@ -186,7 +184,6 @@
     </div>
     
     <script>
-        // Konfigurasi API
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2ZQ9o6hSnAkkCrDPscsYBc8jFD4rFmPCyDRmGkwCyKJolejDglJFqCdnna9ElpKnAqg/exec';
         const SUPER_ADMIN = "syamsul18782@gmail.com";
         
@@ -202,7 +199,6 @@
         let chart;
         let activeReferenceNode = null; 
 
-        // Fungsi fetch ke GAS
         async function apiCall(payload) {
             try {
                 const response = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
@@ -296,16 +292,15 @@
                 document.getElementById('namaAyah').required = false;
                 document.getElementById('namaIbu').required = false;
                 
-                // LOGIKA OTOMATISASI PASANGAN BERBEDA JENIS KELAMIN
                 if (jenis === 'Pasangan' && activeReferenceNode) {
                     const refPerson = familyDataCache.find(d => d.ID_Anggota === activeReferenceNode.id);
                     if (refPerson) {
                         const oppositeGender = (refPerson.Jenis_Kelamin === 'L') ? 'P' : 'L';
                         genderSelect.value = oppositeGender;
-                        genderDiv.classList.add('hidden'); // Sembunyikan pilihan, agar sistem mengunci otomatis.
+                        genderDiv.classList.add('hidden'); 
                     }
                 } else {
-                    genderDiv.classList.remove('hidden'); // Tampilkan form gender kembali.
+                    genderDiv.classList.remove('hidden'); 
                 }
             }
         }
@@ -331,7 +326,6 @@
 
             btnSubmit.innerHTML = isOwner ? '<i class="fa-solid fa-save mr-2"></i> Simpan Data' : '<i class="fa-solid fa-paper-plane mr-2"></i> Ajukan Proposal';
 
-            // Reset Options state
             Array.from(selectHubungan.options).forEach(opt => opt.classList.remove('hidden'));
 
             if (familyDataCache.length === 0) {
@@ -345,7 +339,6 @@
                 divPrivasi.classList.add('hidden'); divHubungan.classList.remove('hidden');
                 modalTitle.innerText = "Tambah Kerabat untuk " + refNodeName;
 
-                // Kembalikan opsi standar
                 selectHubungan.innerHTML = `
                     <option value="OrangTua">👨‍👩‍👧 Tambah Orang Tua (Ayah & Ibu)</option>
                     <option value="Pasangan">❤️ Tambah Pasangan (Suami/Istri)</option>
@@ -357,7 +350,6 @@
                     selectHubungan.innerHTML = `<option value="Anak">🧒 Tambah Anak</option>`;
                     selectHubungan.value = 'Anak';
                 } else {
-                    // Jika sudah punya orang tua, sembunyikan opsi Orang Tua
                     if (hasParent) {
                         selectHubungan.querySelector('option[value="OrangTua"]').classList.add('hidden');
                         selectHubungan.value = 'Pasangan';
@@ -371,9 +363,6 @@
         
         function closeFormModal() { document.getElementById('memberModal').classList.add('hidden'); document.getElementById('familyForm').reset(); activeReferenceNode = null; }
 
-        // ==============================================================
-        // FUNGSI LOGOUT PROFESIONAL (PEMUTUSAN SESI SSO SECARA PENUH)
-        // ==============================================================
         function logoutSSO() {
             Swal.fire({
                 title: 'Konfirmasi Logout',
@@ -386,21 +375,14 @@
                 cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // 1. Tampilkan animasi pemrosesan
                     Swal.fire({ title: 'Memproses Logout...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
-                    // 2. Putuskan Sesi Auto-Select Google SSO (Agar user dipaksa pilih akun lagi saat login)
                     if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
                         google.accounts.id.disableAutoSelect();
                     }
 
-                    // 3. Bersihkan memori lokal aplikasi
-                    currentUser = ""; 
-                    isSuperAdmin = false; 
-                    isOwner = false; 
-                    localStorage.removeItem('familyTree_user'); 
+                    currentUser = ""; isSuperAdmin = false; isOwner = false; localStorage.removeItem('familyTree_user'); 
                     
-                    // 4. Update Tampilan Navigasi
                     document.getElementById('btnLogin').classList.remove('hidden'); 
                     document.getElementById('btnLogout').classList.add('hidden');
                     document.getElementById('userEmailBadge').classList.add('hidden'); 
@@ -409,10 +391,8 @@
                     
                     evaluateRole(); 
                     
-                    // 5. Berikan Notifikasi Kesuksesan dengan Delay Singkat (UX Profesional)
                     setTimeout(() => {
                         Swal.fire({toast:true, position:'top-end', icon:'success', title:'Anda berhasil logout.', showConfirmButton:false, timer:2500});
-                        // Jika sedang melihat silsilah publik (via link), reload data agar tombol edit hilang. Jika tidak, ke Beranda.
                         if(targetEmail) loadData(); else tampilkanWelcomeScreen();
                     }, 800);
                 }
@@ -583,7 +563,7 @@
         }
 
         // =========================================================================
-        // VISUALISASI BAGAN
+        // VISUALISASI BAGAN (DENGAN PENYELAMAT MULTIPLE ROOTS YANG CERDAS)
         // =========================================================================
         function renderTree(data) {
             document.getElementById('loadingChart').style.display = 'none';
@@ -591,9 +571,9 @@
 
             if (data.length === 0) return;
 
-            const spouses = data.filter(d => d.ID_Spouse);
-            const mainNodes = data.filter(d => !d.ID_Spouse || d.HubunganDinamis === "Saya" || !spouses.some(s => s.ID_Spouse === d.ID_Anggota && s.Timestamp > d.Timestamp)); 
-            
+            // 1. Identifikasi Siapa yang memiliki peran sebagai Parent
+            const parentIds = new Set(data.map(d => d.ID_Parent).filter(p => p));
+
             const mappedNodes = new Map();
             data.forEach(d => {
                 mappedNodes.set(d.ID_Anggota, {
@@ -603,21 +583,50 @@
                 });
             });
 
+            // 2. Gabungkan Pasangan dengan Aman
             data.forEach(d => {
                 if (d.ID_Spouse && mappedNodes.has(d.ID_Spouse) && mappedNodes.has(d.ID_Anggota)) {
-                    const main = mappedNodes.get(d.ID_Spouse);
-                    const sp = mappedNodes.get(d.ID_Anggota);
-                    if (!main.spouses.includes(sp) && !sp.spouses.includes(main)) {
-                        main.spouses.push(sp);
-                        mappedNodes.delete(d.ID_Anggota); 
+                    const node1 = mappedNodes.get(d.ID_Anggota);
+                    const node2 = mappedNodes.get(d.ID_Spouse);
+                    
+                    if (!node1.spouses.includes(node2) && !node2.spouses.includes(node1)) {
+                        
+                        // Keputusan: Siapa yang menjadi Node Utama (Tidak dihapus)?
+                        let isNode1Main = parentIds.has(node1.id);
+                        let isNode2Main = parentIds.has(node2.id);
+                        
+                        if (isNode1Main && !isNode2Main) {
+                            node1.spouses.push(node2); mappedNodes.delete(node2.id);
+                        } else if (!isNode1Main && isNode2Main) {
+                            node2.spouses.push(node1); mappedNodes.delete(node1.id);
+                        } else {
+                            // Tie Breaker (Jika keduanya bukan parent, atau keduanya parent)
+                            if (node1.positionName === "Saya") {
+                                node1.spouses.push(node2); mappedNodes.delete(node2.id);
+                            } else if (node2.positionName === "Saya") {
+                                node2.spouses.push(node1); mappedNodes.delete(node1.id);
+                            } else if (node1.gender === 'L') {
+                                node1.spouses.push(node2); mappedNodes.delete(node2.id);
+                            } else {
+                                node2.spouses.push(node1); mappedNodes.delete(node1.id);
+                            }
+                        }
                     }
                 }
             });
 
             let chartData = Array.from(mappedNodes.values());
 
+            // 3. Tangani "Missing Parent" (Penyelamat Yatim Piatu) agar D3 tidak Crash
             let rootNodesCount = 0;
-            chartData.forEach(d => { if (d.parentId === "") rootNodesCount++; });
+            chartData.forEach(d => { 
+                // Jika dia punya ParentId tapi Parent-nya sudah tidak ada di Array (Misal: error input)
+                if (d.parentId !== "" && !mappedNodes.has(d.parentId)) {
+                    d.parentId = ""; // Bersihkan agar jadi root
+                }
+                if (d.parentId === "") rootNodesCount++; 
+            });
+
             if (rootNodesCount > 1) {
                 chartData.forEach(d => { if (d.parentId === "") d.parentId = "VIRTUAL_ROOT"; });
                 chartData.push({ id: "VIRTUAL_ROOT", parentId: "", name: "Keluarga Besar", positionName: "Pusat", imageUrl: "https://ui-avatars.com/api/?name=Keluarga&background=1d4ed8&color=fff", gender: "L", spouses: [], hasParent:false });
