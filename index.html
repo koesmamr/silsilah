@@ -643,20 +643,42 @@
                 });
             });
 
+            // Menyimpan relasi nikah khusus (Besan)
+            let crossMarriageConnections = []; 
+
             data.forEach(d => {
                 if (d.ID_Spouse && mappedNodes.has(d.ID_Spouse) && mappedNodes.has(d.ID_Anggota)) {
                     const node1 = mappedNodes.get(d.ID_Anggota);
                     const node2 = mappedNodes.get(d.ID_Spouse);
                     
                     if (!node1.spouses.includes(node2) && !node2.spouses.includes(node1)) {
-                        let isNode1Main = parentIds.has(node1.id); let isNode2Main = parentIds.has(node2.id);
-                        if (isNode1Main && !isNode2Main) { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
-                        else if (!isNode1Main && isNode2Main) { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
-                        else {
-                            if (node1.positionName === "Saya") { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
-                            else if (node2.positionName === "Saya") { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
-                            else if (node1.gender === 'L') { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
-                            else { node2.spouses.push(node1); mappedNodes.delete(node1.id); }
+                        
+                        // KASUS BESAN (Kedua Pasangan Punya Orang Tua Sendiri-Sendiri di Chart)
+                        if (node1.hasParent && node2.hasParent) {
+                            // JANGAN DI-MERGE (ditumpuk jadi 1 kotak). Biarkan terpisah jadi 2 garis keturunan berbeda.
+                            // Lalu gambar garis putus-putus untuk menandakan mereka adalah Suami-Istri.
+                            const connExists = crossMarriageConnections.some(c => (c.from === node1.id && c.to === node2.id) || (c.from === node2.id && c.to === node1.id));
+                            if (!connExists) {
+                                crossMarriageConnections.push({ from: node1.id, to: node2.id, label: "Menikah" });
+                            }
+                        } else {
+                            // KASUS BIASA (Salah satu numpang ke yang Punya Garis Keturunan Utama)
+                            let isNode1Parent = parentIds.has(node1.id);
+                            let isNode2Parent = parentIds.has(node2.id);
+
+                            // PRIORITAS UTAMA: Yang PUNYA ORANG TUA (Garis Darah Kandung) harus selalu jadi Main Node!
+                            if (node1.hasParent && !node2.hasParent) { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
+                            else if (!node1.hasParent && node2.hasParent) { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
+                            // Prioritas Kedua: Yang Punya Anak jadi Main Node
+                            else if (isNode1Parent && !isNode2Parent) { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
+                            else if (!isNode1Parent && isNode2Parent) { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
+                            // Prioritas Terakhir: "Saya" atau Gender Laki-Laki
+                            else {
+                                if (node1.positionName === "Saya") { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
+                                else if (node2.positionName === "Saya") { node2.spouses.push(node1); mappedNodes.delete(node1.id); } 
+                                else if (node1.gender === 'L') { node1.spouses.push(node2); mappedNodes.delete(node2.id); } 
+                                else { node2.spouses.push(node1); mappedNodes.delete(node1.id); }
+                            }
                         }
                     }
                 }
@@ -678,17 +700,25 @@
             if (!chart) {
                 chart = new d3.OrgChart().container('.chart-container').data(chartData)
                     .nodeWidth(d => {
-                        // Sembunyikan lebar jika ini adalah node Keluarga Besar (virtual)
                         if (d.data.id === "VIRTUAL_ROOT") return 1;
                         return (d.data.spouses && d.data.spouses.length > 0) ? 220 + (d.data.spouses.length * 260) : 220;
                     })
                     .initialZoom(0.8)
                     .nodeHeight(d => d.data.id === "VIRTUAL_ROOT" ? 1 : 135)
                     .childrenMargin(d => 60).compact(false)
+                    // MENGGAMBAR GARIS BESAN (PERNIKAHAN ANTAR KELUARGA)
+                    .connections(crossMarriageConnections)
+                    .connectionsUpdate(function (d, i, arr) {
+                        d3.select(this)
+                            .attr('stroke', '#ec4899') // Warna Pink (Dashed)
+                            .attr('stroke-width', 3)
+                            .attr('stroke-dasharray', '5, 5')
+                            .attr('fill', 'none');
+                    })
+                    // MENGGAMBAR GARIS DARAH KANDUNG BAWAAN
                     .linkUpdate(function (d, i, arr) {
                         const path = d3.select(this);
 
-                        // Sembunyikan garis yang berasal dari akar virtual (Keluarga Besar)
                         if (d && d.source && d.source.data.id === "VIRTUAL_ROOT") {
                             path.attr("stroke", "none");
                             return;
@@ -698,28 +728,22 @@
                             .attr("stroke-width", 2)
                             .attr("fill", "none");
                             
-                        // PENTING: Gunakan data d secara langsung tanpa me-match string attr bawaan 
-                        // agar tahan banting terhadap animasi dan error "undefined".
                         if (d && d.source && d.target) {
-                            // AMAN: Hitung koordinat Y
                             const startY = d.source.y + (d.source.height || 135);
                             const endY = d.target.y;
 
-                            // PERBAIKAN LOGIKA GARIS DARAH SECARA MATEMATIS:
-                            // d.x selalu merupakan titik "Paling Kiri" dari seluruh area Node gabungan.
-                            // Kotak utama (Anggota Kandung/Darah) PASTI dirender pertama dengan lebar 220px.
-                            // Jadi titik tengah kotak darah pasti adalah d.x + 110, selamanya.
-                            
-                            const startX = d.source.x + 110; // Titik tengah kotak Orang Tua kandung
-                            const endX = d.target.x + 110;   // Titik tengah kotak Anak kandung
+                            // Karena Prioritas Darah kita sudah 100% benar,
+                            // Kotak Utama di sebelah kiri PASTI selalu si Ortu Kandung dan Anak Kandung.
+                            // Maka d.source.x + 110 secara matematis SELALU membidik pusat Kepala Ayah/Ibu kandung.
+                            // dan d.target.x + 110 SELALU membidik pusat Kepala Anak kandung.
+                            const startX = d.source.x + 110; 
+                            const endX = d.target.x + 110;   
 
-                            // Kurva Bezier Siku untuk garis turun yang profesional
                             const midY = startY + (endY - startY) / 2;
                             path.attr("d", `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`);
                         }
                     })
                     .nodeContent(function(d, i, arr, state) {
-                        // Jangan tampilkan kotak visual apapun jika ini adalah node Keluarga Besar
                         if (d.data.id === "VIRTUAL_ROOT") return `<div style="display:none;"></div>`;
 
                         const renderCard = (id, name, position, gender, image, hasParent, status) => {
