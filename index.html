@@ -693,17 +693,19 @@
                                     const startY = parseFloat(coords[1]);
                                     const endY = parseFloat(coords[coords.length - 1]);
 
-                                    // AMAN: Hitung lebar source secara manual karena d.source.width sering kali undefined
+                                    // AMAN: Hitung lebar source (Orang Tua) secara manual untuk mencegah "undefined width error"
                                     const sourceSpousesCount = d.source.data.spouses ? d.source.data.spouses.length : 0;
                                     const sourceWidth = sourceSpousesCount > 0 ? 220 + (sourceSpousesCount * 260) : 220;
-                                    const startX = (d.source.x - sourceWidth / 2) + 110;
+                                    // Titik awal garis pasti jatuh di tengah-tengah kotak parent pertama (Orang tua kandung)
+                                    const startX = (d.source.x - (sourceWidth / 2)) + 110;
 
-                                    // AMAN: Hitung lebar target secara manual
+                                    // AMAN: Hitung lebar target (Anak) secara manual
                                     const targetSpousesCount = d.target.data.spouses ? d.target.data.spouses.length : 0;
                                     const targetWidth = targetSpousesCount > 0 ? 220 + (targetSpousesCount * 260) : 220;
-                                    const endX = (d.target.x - targetWidth / 2) + 110; 
+                                    // Titik akhir garis mendarat PASTI di tengah-tengah kotak si Anak (biologis), mengabaikan posisi pasangannya
+                                    const endX = (d.target.x - (targetWidth / 2)) + 110; 
 
-                                    // Gunakan Cubic Bezier (C) agar garis melengkung siku dengan rapi
+                                    // Menggunakan kurva siku Bezier (Cubic Bezier) agar rapi
                                     const midY = startY + (endY - startY) / 2;
                                     path.attr("d", `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`);
                                 }
