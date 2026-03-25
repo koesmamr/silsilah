@@ -631,8 +631,13 @@
                 "USD": gender === 'L' ? "Saudara (L)" : "Saudara (P)",
                 "UUD": gender === 'L' ? "Paman" : "Bibi", 
                 "UUSD": gender === 'L' ? "Paman" : "Bibi", 
+                
+                // JALUR KAKEK & NENEK
                 "UU": gender === 'L' ? "Kakek" : "Nenek", 
                 "UUS": gender === 'L' ? "Kakek" : "Nenek",
+                "SUU": gender === 'L' ? "Kakek Mertua" : "Nenek Mertua",  // PERBAIKAN: Orang tua dari mertua
+                "SUUS": gender === 'L' ? "Kakek Mertua" : "Nenek Mertua", // PERBAIKAN: Pasangan orang tua dari mertua
+                
                 "UUDD": "Sepupu", 
                 "UDD": "Keponakan", 
                 "USDD": "Keponakan", 
@@ -642,8 +647,14 @@
                 "USDS": "Ipar", 
                 "SUD": "Ipar", 
                 "SUSD": "Ipar", 
-                "SUDS": "Ipar",  // PERBAIKAN: Pasangan dari saudara ipar (Istri/Suami dari Kakak/Adik Ipar)
-                "SUSDS": "Ipar", // PERBAIKAN: Pasangan dari saudara ipar (via jalur mertua ke-2)
+                "SUDS": "Ipar",  
+                "SUSDS": "Ipar", 
+                
+                "SUDD": "Keponakan",  
+                "UDSD": "Keponakan",   
+                "USDSD": "Keponakan",  
+                "SUSDD": "Keponakan",  
+
                 "DS": "Menantu", 
                 "SDS": "Menantu", 
                 "UUU": "Buyut",
@@ -779,6 +790,8 @@
                             const pendingBadge = isPending ? `<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-50 whitespace-nowrap"><i class="fas fa-clock"></i> Verifikasi</div>` : '';
                             
                             let btnHtml = '';
+                            let actionBtns = '';
+
                             if (currentUser && id !== "VIRTUAL_ROOT") {
                                 btnHtml = `<button onclick="openFormModal('${id}', '${escapedName}', null, ${hasParent})" class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-7 h-7 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-md border border-gray-200 hover:bg-gray-100 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Keluarga"><i class="fas fa-plus text-[10px]"></i></button>`;
                                 
@@ -793,9 +806,19 @@
                                 }
                             }
 
+                            // TOMBOL EDIT & DELETE KHUSUS ADMIN
+                            if (isAdmin && id !== "VIRTUAL_ROOT") {
+                                actionBtns = `
+                                <div class="absolute top-2 left-2 flex gap-1 z-50">
+                                    <button onclick="event.stopPropagation(); editNodePrompt('${id}', '${escapedName}')" class="w-6 h-6 bg-white text-gray-500 rounded-md flex items-center justify-center shadow-sm border border-gray-200 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer" title="Edit Nama"><i class="fas fa-edit text-[10px]"></i></button>
+                                    <button onclick="event.stopPropagation(); deleteNodePrompt('${id}', '${escapedName}')" class="w-6 h-6 bg-white text-gray-500 rounded-md flex items-center justify-center shadow-sm border border-gray-200 hover:text-red-600 hover:bg-red-50 transition cursor-pointer" title="Hapus Anggota"><i class="fas fa-trash text-[10px]"></i></button>
+                                </div>`;
+                            }
+
                             return `
                             <div class="relative shadow-md hover:shadow-xl transition" style="background-color:${color}; border: 2px ${borderStyle} ${borderColor}; border-radius: 12px; width: 220px; height: 110px; display: flex; align-items: center; padding: 12px; box-sizing: border-box; flex-shrink: 0; opacity: ${isPending ? 0.8 : 1}; margin-top:10px;">
                                 ${pendingBadge}
+                                ${actionBtns}
                                 <div class="absolute top-2 right-2 text-xs opacity-60">${iconGen}</div>
                                 <img src="${image}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-right: 14px;" />
                                 <div style="width:calc(100% - 70px); overflow:hidden;">
@@ -922,6 +945,50 @@
             }).then((result) => {
                 if (result.isConfirmed && result.value) {
                     window.location.hash = result.value;
+                }
+            });
+        }
+
+        // FUNGSI PROMPT EDIT & DELETE
+        function editNodePrompt(id, currentName) {
+            Swal.fire({
+                title: 'Edit Nama',
+                input: 'text',
+                inputValue: currentName,
+                showCancelButton: true,
+                confirmButtonText: 'Simpan Perubahan',
+                cancelButtonText: 'Batal',
+                inputValidator: (value) => { if (!value) return 'Nama tidak boleh kosong!'; }
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    Swal.fire({title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    apiCall({ action: 'editNode', treeId: currentTreeId, userEmail: currentUser, nodeId: id, newName: result.value.trim() })
+                    .then(res => {
+                        if(res.success) { Swal.fire({toast:true, position:'top-end', icon:'success', title:res.message, showConfirmButton:false, timer:2000}); loadData(); }
+                        else { Swal.fire('Gagal', res.message, 'error'); }
+                    }).catch(err => Swal.fire('Error', err.message, 'error'));
+                }
+            });
+        }
+
+        function deleteNodePrompt(id, name) {
+            Swal.fire({
+                title: 'Hapus Anggota?',
+                html: `Anda yakin ingin menghapus <b>${name}</b>?<br><br><span class="text-sm text-red-600"><i class="fas fa-exclamation-triangle"></i> <b>Peringatan:</b> Menghapus orang ini juga akan menghapus seluruh pasangannya dan keturunannya di bawahnya secara permanen!</span>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Ya, Hapus Semua!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'Menghapus...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    apiCall({ action: 'deleteNode', treeId: currentTreeId, userEmail: currentUser, nodeId: id })
+                    .then(res => {
+                        if(res.success) { Swal.fire({toast:true, position:'top-end', icon:'success', title:res.message, showConfirmButton:false, timer:2000}); loadData(); }
+                        else { Swal.fire('Gagal', res.message, 'error'); }
+                    }).catch(err => Swal.fire('Error', err.message, 'error'));
                 }
             });
         }
