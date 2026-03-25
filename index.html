@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Silsilah Keluarga</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- D3.js & d3-org-chart -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-org-chart@3.0.1"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Identity Services (SSO) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        window.handleCredentialResponseProxy = function(response) {
+            if (typeof window.handleCredentialResponse === 'function') {
+                window.handleCredentialResponse(response);
+            } else {
+                console.error("Fungsi sistem utama belum termuat. Harap muat ulang halaman.");
+            }
+        };
+    </script>
+
+    <style>
+        .chart-container { width: 100%; height: 75vh; background-color: #f8fafc; border-radius: 0.5rem; border: 1px solid #e2e8f0; }
+        .node-card { font-family: 'Inter', sans-serif; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .loader { border-top-color: #3b82f6; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Tambahan Animasi Latar Belakang Profesional */
+        .animate-blob { animation: blob 7s infinite; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        @keyframes blob {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased">
+
+    <!-- Google Login Init (Tersembunyi, dipanggil via custom button/modal) -->
+    <div id="g_id_onload"
+         data-client_id="181120297143-lvpop0ra4o9q6i3g18b74ubsuc8e59fh.apps.googleusercontent.com" 
+         data-callback="handleCredentialResponseProxy"
+         data-auto_prompt="false">
+    </div>
+
+    <!-- Modal Login SSO -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center z-[100] backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center relative border border-gray-100">
+            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition"><i class="fas fa-times text-xl"></i></button>
+            <i class="fa-solid fa-user-shield text-5xl text-blue-600 mb-4 drop-shadow-md"></i>
+            <h2 class="text-2xl font-bold mb-2 text-gray-900">Login Diperlukan</h2>
+            <p class="text-sm mb-8 text-gray-500">Anda harus login menggunakan akun Google Anda untuk membuat silsilah baru atau memodifikasi data keluarga.</p>
+            
+            <div class="flex justify-center w-full">
+                <!-- Tombol GSI (Akan dirender oleh library Google disini) -->
+                <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center cursor-pointer" onclick="window.location.href=window.location.pathname">
+                    <i class="fa-solid fa-network-wired text-2xl mr-3"></i>
+                    <span class="font-bold text-xl tracking-tight">FamilyTree</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span id="userEmailBadge" class="hidden text-sm bg-blue-700 px-3 py-1 rounded-full font-medium"></span>
+                    
+                    <!-- Super Admin Button -->
+                    <button id="btnSuperAdmin" onclick="cariSilsilahAdmin()" class="hidden bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-lg text-sm font-semibold transition shadow-lg border border-purple-400">
+                        <i class="fa-solid fa-search mr-1"></i> Pantau
+                    </button>
+                    
+                    <button onclick="copyShareLink()" class="bg-green-500 hover:bg-green-600 px-3 py-1.5 rounded-lg text-sm font-semibold transition shadow">
+                        <i class="fa-solid fa-share-nodes mr-1"></i> Bagikan
+                    </button>
+                    
+                    <!-- Login/Logout Toggle -->
+                    <button id="btnLogin" onclick="openLoginModal()" class="bg-white text-blue-600 hover:bg-gray-100 px-4 py-1.5 rounded-lg text-sm font-bold transition shadow">
+                        Login SSO
+                    </button>
+                    <button id="btnLogout" onclick="logoutSSO()" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition shadow">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Header Section -->
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
+                    Silsilah <span id="ownerNameDisplay" class="text-blue-600 border-b-2 border-blue-200">Keluarga</span>
+                    <span id="privacyBadge" class="hidden text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold align-middle mt-1"></span>
+                </h1>
+                <p class="text-sm text-gray-500 mt-2">Status Anda: <span id="roleBadge" class="font-semibold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">Guest (Publik)</span></p>
+            </div>
+            <button onclick="openFormModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-md font-medium transition flex items-center transform hover:-translate-y-0.5">
+                <i class="fa-solid fa-plus mr-2"></i> Tambah Anggota
+            </button>
+        </div>
+
+        <!-- Proposals Alert (Only visible to Owner / Super Admin) -->
+        <div id="proposalContainer" class="hidden mb-6 animate-fade-in">
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-sm">
+                <div class="flex">
+                    <div class="flex-shrink-0"><i class="fa-solid fa-bell text-yellow-400 text-xl mt-0.5"></i></div>
+                    <div class="ml-4 w-full">
+                        <h3 class="text-sm font-bold text-yellow-800 uppercase tracking-wide">Menunggu Verifikasi & Persetujuan</h3>
+                        <div class="mt-2 text-sm text-yellow-700" id="proposalList">
+                            <!-- Proposals injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualisasi Pohon -->
+        <div class="bg-white p-4 rounded-2xl shadow-lg border border-gray-100">
+            <div id="loadingChart" class="flex justify-center items-center h-72">
+                <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-12 w-12"></div>
+            </div>
+            
+            <!-- Tempat merender chart D3 atau Empty State -->
+            <div class="chart-container overflow-hidden relative" id="treeContainer" style="display: none;"></div>
+        </div>
+
+    </main>
+
+    <!-- Modal Form (Tambah Anggota) -->
+    <div id="memberModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto border border-gray-100">
+            <div class="flex justify-between items-center mb-5 border-b pb-3">
+                <h2 class="text-xl font-bold text-gray-800" id="modalTitle">Tambah Anggota Keluarga</h2>
+                <button onclick="closeFormModal()" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+            
+            <form id="familyForm" onsubmit="submitForm(event)">
+                <div class="space-y-4">
+                    <!-- Pengaturan Privasi Khusus Kepala Keluarga Pertama -->
+                    <div id="privasiDiv" class="hidden bg-blue-50 p-3 rounded-lg border border-blue-100 mb-2">
+                        <label class="block text-sm font-bold text-blue-800 mb-1"><i class="fas fa-shield-alt mr-1"></i> Pengaturan Privasi Silsilah</label>
+                        <p class="text-xs text-blue-600 mb-2">Pilih visibilitas silsilah yang Anda buat ini.</p>
+                        <select id="privasiSilsilah" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border font-medium">
+                            <option value="Terbuka">🔓 Terbuka (Dapat dilihat publik tanpa login)</option>
+                            <option value="Tertutup">🔒 Tertutup (Hanya via link & perlu login SSO)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700">Nama Lengkap</label>
+                        <input type="text" id="nama" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700">Jenis Kelamin</label>
+                            <select id="jenisKelamin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50">
+                                <option value="L">Laki-laki (L)</option>
+                                <option value="P">Perempuan (P)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700">Hubungan</label>
+                            <select id="hubungan" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border bg-gray-50 font-medium text-blue-700">
+                                <option value="Kepala Keluarga">Kepala Keluarga (Root)</option>
+                                <option value="Anak">Anak</option>
+                                <option value="Pasangan">Pasangan (Suami/Istri)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="parentDiv" class="hidden">
+                        <label class="block text-sm font-bold text-gray-700">Pilih Orang Tua (Parent)</label>
+                        <select id="idParent" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 border bg-gray-50">
+                            <option value="">-- Pilih --</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700">Foto Profil (Opsional, Max 2MB)</label>
+                        <input type="file" id="foto" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-end space-x-3">
+                    <button type="button" onclick="closeFormModal()" class="px-5 py-2.5 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 font-medium transition">Batal</button>
+                    <button type="submit" id="btnSubmit" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center font-bold shadow-md transition transform hover:-translate-y-0.5">
+                        <i class="fa-solid fa-save mr-2"></i> Simpan Data
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- SCRIPT CLIENT SIDE -->
+    <script>
+        // Variabel dari Server (Injeksi Scriptlet GAS)
+        let targetEmail = "<?= targetEmail ?>"; 
+        if (targetEmail.includes("?=")) targetEmail = ""; // Fallback localhost
+        
+        const SUPER_ADMIN = "syamsul18782@gmail.com";
+        let currentUser = "";
+        let isSuperAdmin = false;
+        let isOwner = false;
+        let familyDataCache = [];
+        let chart;
+
+        // Inisialisasi Pemuatan Awal
+        window.onload = function() {
+            if (targetEmail) {
+                // Ada target email di URL, coba muat datanya (bisa publik, bisa privat)
+                loadData();
+            } else {
+                // Landing state (Tidak ada target)
+                tampilkanWelcomeScreen();
+            }
+        };
+
+        // UI Controls
+        function openLoginModal() { document.getElementById('loginModal').classList.remove('hidden'); }
+        function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
+        function openFormModal() { 
+            if (!currentUser) {
+                Swal.fire({ title: 'Akses Terbatas', text: 'Anda harus Login terlebih dahulu untuk menambah atau mengubah data silsilah.', icon: 'info', confirmButtonText: 'Login Sekarang' }).then((result) => {
+                    if(result.isConfirmed) openLoginModal();
+                });
+                return;
+            }
+            
+            // Set default target jika kosong
+            if (!targetEmail) {
+                targetEmail = currentUser;
+                document.getElementById('ownerNameDisplay').innerText = targetEmail;
+                loadData(); // Load agar chart siap
+            }
+            
+            document.getElementById('memberModal').classList.remove('hidden'); 
+            
+            // Cek apakah ini anggota pertama
+            const selectHubungan = document.getElementById('hubungan');
+            if (familyDataCache.length === 0) {
+                selectHubungan.value = 'Kepala Keluarga';
+                selectHubungan.classList.add('pointer-events-none', 'bg-gray-200'); // Kunci form
+                document.getElementById('privasiDiv').classList.remove('hidden');
+            } else {
+                selectHubungan.classList.remove('pointer-events-none', 'bg-gray-200');
+                if(selectHubungan.value === 'Kepala Keluarga') selectHubungan.value = 'Anak';
+                document.getElementById('privasiDiv').classList.add('hidden');
+            }
+            // Trigger change untuk parentDiv
+            selectHubungan.dispatchEvent(new Event('change'));
+        }
+        function closeFormModal() { document.getElementById('memberModal').classList.add('hidden'); document.getElementById('familyForm').reset(); }
+        
+        // Logika Hubungan (Parent Div Toggle)
+        document.getElementById('hubungan').addEventListener('change', function(e) {
+            const val = e.target.value;
+            const parentDiv = document.getElementById('parentDiv');
+            const privasiDiv = document.getElementById('privasiDiv');
+            
+            if(val === 'Anak') {
+                parentDiv.classList.remove('hidden');
+                document.getElementById('idParent').required = true;
+            } else {
+                parentDiv.classList.add('hidden');
+                document.getElementById('idParent').required = false;
+            }
+
+            if(val === 'Kepala Keluarga' && familyDataCache.length === 0) {
+                privasiDiv.classList.remove('hidden');
+            } else {
+                privasiDiv.classList.add('hidden');
+            }
+        });
+
+        function logoutSSO() {
+            currentUser = ""; isSuperAdmin = false; isOwner = false;
+            
+            // Update UI
+            document.getElementById('btnLogin').classList.remove('hidden');
+            document.getElementById('btnLogout').classList.add('hidden');
+            document.getElementById('userEmailBadge').classList.add('hidden');
+            document.getElementById('btnSuperAdmin').classList.add('hidden');
+            document.getElementById('roleBadge').innerText = 'Guest (Publik)';
+            document.getElementById('roleBadge').className = 'font-semibold text-gray-500 bg-gray-200 px-2 py-0.5 rounded';
+            document.getElementById('proposalContainer').classList.add('hidden');
+            
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Logout Berhasil', showConfirmButton:false, timer:2000});
+            if(targetEmail) loadData(); else tampilkanWelcomeScreen();
+        }
+
+        // Decode JWT Google SSO
+        function decodeJwtResponse(token) {
+            let base64Url = token.split('.')[1];
+            let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        }
+
+        // Callback Login GSI
+        window.handleCredentialResponse = function(response) {
+            closeLoginModal();
+            Swal.fire({title: 'Otentikasi...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            
+            try {
+                const payload = decodeJwtResponse(response.credential);
+                currentUser = payload.email;
+                
+                // Set logic role
+                isSuperAdmin = (currentUser === SUPER_ADMIN);
+                
+                // Jika user login namun belum buka link silsilah siapa-siapa, arahkan ke miliknya
+                if (!targetEmail || targetEmail === "undefined" || targetEmail === "") {
+                    targetEmail = currentUser;
+                }
+
+                isOwner = (currentUser === targetEmail) || isSuperAdmin;
+                
+                // Update UI Navbar
+                document.getElementById('userEmailBadge').innerText = currentUser;
+                document.getElementById('userEmailBadge').classList.remove('hidden');
+                document.getElementById('btnLogin').classList.add('hidden');
+                document.getElementById('btnLogout').classList.remove('hidden');
+                
+                let roleBadgeObj = document.getElementById('roleBadge');
+                if (isSuperAdmin) {
+                    roleBadgeObj.innerText = '👑 Super Admin';
+                    roleBadgeObj.className = 'font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded shadow-sm';
+                    document.getElementById('btnSuperAdmin').classList.remove('hidden');
+                } else {
+                    roleBadgeObj.innerText = isOwner ? 'Pemilik (Owner)' : 'Kontributor (Guest)';
+                    roleBadgeObj.className = isOwner ? 'font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded' : 'font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded';
+                }
+                
+                if(!isOwner) {
+                    document.getElementById('modalTitle').innerText = "Ajukan Penambahan Anggota";
+                    document.getElementById('btnSubmit').innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> Kirim Pengajuan (Proposal)';
+                } else {
+                    document.getElementById('modalTitle').innerText = "Tambah Anggota Silsilah";
+                    document.getElementById('btnSubmit').innerHTML = '<i class="fa-solid fa-save mr-2"></i> Simpan Langsung';
+                }
+
+                Swal.close();
+
+                // Panggil data keluarga berdasarkan targetEmail
+                if (typeof google !== 'undefined' && google.script) {
+                    loadData();
+                    if(isOwner) loadProposals();
+                } else {
+                    Swal.fire('Info', 'Login berhasil (Simulasi Lokal).', 'info');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Gagal memproses login: ' + e.message, 'error');
+            }
+        };
+
+        // Layar Selamat Datang
+        function tampilkanWelcomeScreen() {
+            document.getElementById('loadingChart').style.display = 'none';
+            document.getElementById('treeContainer').style.display = 'block';
+            document.getElementById('ownerNameDisplay').innerText = "Keluarga";
+            document.getElementById('privacyBadge').classList.add('hidden');
+            
+            // Desain Baru yang Super Profesional (Hero Section)
+            document.getElementById('treeContainer').innerHTML = `
+                <div class="w-full h-full flex flex-col md:flex-row bg-white overflow-hidden rounded-xl">
+                    <!-- Bagian Kiri: Copywriting & CTA -->
+                    <div class="w-full md:w-1/2 p-8 md:p-12 lg:p-16 flex flex-col justify-center relative overflow-hidden">
+                        <!-- Ornamen Latar Tipis -->
+                        <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-50 via-white to-purple-50 opacity-60 z-0 pointer-events-none"></div>
+                        
+                        <div class="relative z-10">
+                            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 text-[10px] sm:text-xs font-bold uppercase tracking-widest w-max mb-6 border border-blue-200 shadow-sm">
+                                <i class="fas fa-star text-yellow-500"></i> Platform Silsilah Modern
+                            </div>
+                            
+                            <h2 class="text-4xl lg:text-5xl font-extrabold text-gray-900 leading-tight mb-5 tracking-tight">
+                                Abadikan <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Warisan</span> Keluarga Anda
+                            </h2>
+                            
+                            <p class="text-sm sm:text-base text-gray-600 mb-8 leading-relaxed max-w-lg">
+                                Bangun, kelola, dan wariskan pohon silsilah keluarga Anda secara digital. Sistem terpusat yang aman, interaktif, dan mudah dikolaborasikan bersama seluruh kerabat tercinta.
+                            </p>
+                            
+                            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-10">
+                                <button onclick="openFormModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 sm:px-8 py-3.5 rounded-xl font-bold transition shadow-lg shadow-blue-500/30 flex items-center justify-center transform hover:-translate-y-1 border border-blue-500">
+                                    <i class="fas fa-sitemap mr-2"></i> Buat Silsilah Baru
+                                </button>
+                                <button onclick="cariSilsilahAdmin()" class="bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 px-6 sm:px-8 py-3.5 rounded-xl font-bold transition flex items-center justify-center transform hover:-translate-y-1 shadow-sm">
+                                    <i class="fas fa-search mr-2"></i> Cari Kerabat
+                                </button>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4 border-t border-gray-100 pt-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center text-lg border border-green-100 shadow-sm"><i class="fas fa-shield-alt"></i></div>
+                                    <div>
+                                        <p class="text-xs font-bold text-gray-800">Privasi Terjamin</p>
+                                        <p class="text-[10px] text-gray-500">Sistem SSO & Kontrol Akses</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-lg border border-purple-100 shadow-sm"><i class="fas fa-project-diagram"></i></div>
+                                    <div>
+                                        <p class="text-xs font-bold text-gray-800">Kolaborasi Aktif</p>
+                                        <p class="text-[10px] text-gray-500">Persetujuan Terpusat (Approval)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bagian Kanan: Ilustrasi Profesional dengan Glassmorphism -->
+                    <div class="hidden md:flex w-full md:w-1/2 relative items-center justify-center overflow-hidden bg-slate-900 rounded-l-3xl shadow-[rgba(0,0,0,0.1)_-10px_0_20px]">
+                        <!-- Background Image dengan Overlay -->
+                        <div class="absolute inset-0 z-0">
+                            <!-- Placeholder image yang memberi kesan hangat/keluarga -->
+                            <img src="https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=1000&auto=format&fit=crop" class="w-full h-full object-cover opacity-30 mix-blend-overlay" alt="Family Background">
+                        </div>
+                        
+                        <!-- Animated Gradient Orbs (Blob) -->
+                        <div class="absolute top-[-10%] right-[-10%] w-96 h-96 bg-blue-600 rounded-full mix-blend-screen filter blur-[80px] opacity-70 animate-blob z-0"></div>
+                        <div class="absolute bottom-[-10%] left-[-10%] w-80 h-80 bg-purple-600 rounded-full mix-blend-screen filter blur-[80px] opacity-70 animate-blob animation-delay-2000 z-0"></div>
+                        
+                        <!-- Graphic/Icon Center (Glassmorphism Effect) -->
+                        <div class="relative z-10 flex flex-col items-center">
+                            <div class="bg-white/10 backdrop-blur-xl p-8 rounded-full border border-white/20 shadow-2xl mb-8 transform hover:scale-105 transition duration-500">
+                                <i class="fas fa-network-wired text-7xl text-white drop-shadow-lg"></i>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl shadow-2xl text-white max-w-xs text-center hover:bg-white/20 transition duration-300">
+                                <i class="fas fa-quote-left text-2xl mb-2 opacity-50 block"></i>
+                                <p class="font-medium text-sm leading-relaxed tracking-wide">"Generasi yang tidak mengetahui sejarah leluhurnya, bagaikan pohon tanpa akar."</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Aesthetic overlay border -->
+                        <div class="absolute inset-0 border-[8px] border-white/5 rounded-l-3xl z-20 pointer-events-none m-4"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Mengambil Data Keluarga (Mendukung Cek Public/Private)
+        function loadData() {
+            if(!targetEmail) return;
+            document.getElementById('loadingChart').style.display = 'flex';
+            document.getElementById('treeContainer').style.display = 'none';
+            document.getElementById('ownerNameDisplay').innerText = targetEmail;
+
+            google.script.run.withSuccessHandler(function(res) {
+                if (res.status === 'error' && res.message === 'PRIVATE_TREE') {
+                    // Silsilah Tertutup, minta login
+                    document.getElementById('loadingChart').style.display = 'none';
+                    document.getElementById('treeContainer').style.display = 'block';
+                    document.getElementById('privacyBadge').innerText = "🔒 Tertutup";
+                    document.getElementById('privacyBadge').className = "text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold align-middle mt-1 bg-red-100 text-red-700 inline-block";
+                    
+                    document.getElementById('treeContainer').innerHTML = `
+                        <div class="flex flex-col h-full items-center justify-center text-gray-500 py-16">
+                            <div class="bg-red-50 p-5 rounded-full mb-5">
+                                <i class="fas fa-lock text-6xl text-red-400"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-gray-800 mb-2">Silsilah Bersifat Tertutup</h2>
+                            <p class="text-sm text-center max-w-sm mb-6">Pemilik mengatur silsilah ini secara privat. Anda harus login dan memiliki hak akses untuk melihat silsilah ini.</p>
+                            <button onclick="openLoginModal()" class="px-6 py-2.5 bg-blue-600 text-white rounded-xl shadow-md font-bold hover:bg-blue-700 transition">
+                                Login Sekarang
+                            </button>
+                        </div>
+                    `;
+                } else if (res.status === 'success') {
+                    // Update Badge
+                    const pBadge = document.getElementById('privacyBadge');
+                    pBadge.classList.remove('hidden');
+                    if(res.isPrivate) {
+                        pBadge.innerText = "🔒 Tertutup"; pBadge.className = "text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold align-middle mt-1 bg-red-100 text-red-700 inline-block";
+                    } else {
+                        pBadge.innerText = "🔓 Terbuka Publik"; pBadge.className = "text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold align-middle mt-1 bg-green-100 text-green-700 inline-block";
+                    }
+
+                    familyDataCache = JSON.parse(res.data);
+                    renderTree(familyDataCache);
+                    populateDropdowns();
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            }).withFailureHandler(function(err){
+                Swal.fire('Server Error', err.message, 'error');
+            }).getFamilyData(targetEmail, currentUser);
+        }
+
+        // Mengambil Data Proposal
+        function loadProposals() {
+            if(!currentUser) return;
+            google.script.run.withSuccessHandler(function(jsonStr) {
+                const proposals = JSON.parse(jsonStr);
+                if (proposals.length > 0) {
+                    document.getElementById('proposalContainer').classList.remove('hidden');
+                    let html = '<ul class="mt-2 space-y-3">';
+                    proposals.forEach(p => {
+                        let detail = JSON.parse(p.Data_Perubahan_JSON);
+                        let targetInfo = detail.AdminInfo_TargetOwner ? `<br><span class="text-xs text-purple-600 mt-1 inline-block bg-purple-50 px-2 py-0.5 rounded"><i class="fas fa-crown"></i> <b>Super Admin View:</b> Milik ${detail.AdminInfo_TargetOwner}</span>` : '';
+                        
+                        html += `
+                        <li class="flex justify-between items-center bg-white p-3.5 rounded-xl border border-yellow-200 shadow-sm">
+                            <div class="text-sm text-gray-800"><b>${detail.Nama}</b> (${detail.Hubungan}) diajukan oleh <b class="text-blue-600">${p.Pengaju_Email}</b>${targetInfo}</div>
+                            <div class="ml-4 flex-shrink-0 flex gap-2">
+                                <button onclick="handleProposal('${p.ID_Proposal}', 'approve')" class="text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fas fa-check mr-1"></i> Terima</button>
+                                <button onclick="handleProposal('${p.ID_Proposal}', 'reject')" class="text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fas fa-times mr-1"></i> Tolak</button>
+                            </div>
+                        </li>`;
+                    });
+                    html += '</ul>';
+                    document.getElementById('proposalList').innerHTML = html;
+                } else {
+                    document.getElementById('proposalContainer').classList.add('hidden');
+                }
+            }).getProposals(currentUser);
+        }
+
+        // Render D3 Org Chart
+        function renderTree(data) {
+            document.getElementById('loadingChart').style.display = 'none';
+            document.getElementById('treeContainer').style.display = 'block';
+
+            if (data.length === 0) {
+                document.getElementById('treeContainer').innerHTML = `
+                    <div class="flex flex-col h-full items-center justify-center text-gray-500 py-16">
+                        <div class="bg-gray-100 p-6 rounded-full mb-4">
+                            <i class="fas fa-user-plus text-5xl text-gray-400"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-700 mb-2">Silsilah Masih Kosong</h2>
+                        <p class="text-sm text-center max-w-sm mb-6">Belum ada anggota yang ditambahkan. Silakan klik tombol 'Tambah Anggota' untuk memulai silsilah ini.</p>
+                    </div>`;
+                return;
+            }
+
+            const chartData = data.map(d => {
+                let parentId = d.ID_Parent;
+                if (!parentId || parentId === "") parentId = "";
+                return {
+                    id: d.ID_Anggota, parentId: parentId, name: d.Nama, positionName: d.Hubungan,
+                    imageUrl: d.URL_Foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(d.Nama) + "&background=random",
+                    gender: d.Jenis_Kelamin
+                };
+            });
+
+            if (!chart) {
+                chart = new d3.OrgChart().container('.chart-container').data(chartData).nodeWidth(d => 220).initialZoom(0.8).nodeHeight(d => 110).childrenMargin(d => 40).compactMarginBetween(d => 20).compactMarginPair(d => 20)
+                    .nodeContent(function(d, i, arr, state) {
+                        const color = d.data.gender === 'L' ? '#eff6ff' : '#fdf2f8'; 
+                        const borderColor = d.data.gender === 'L' ? '#3b82f6' : '#ec4899';
+                        const iconGen = d.data.gender === 'L' ? '<i class="fas fa-mars text-blue-400"></i>' : '<i class="fas fa-venus text-pink-400"></i>';
+                        return `
+                            <div class="node-card relative" style="background-color:${color}; border: 2px solid ${borderColor}; border-radius: 12px; width: ${d.width}px; height: ${d.height}px; display: flex; align-items: center; padding: 12px; box-sizing: border-box;">
+                                <div class="absolute top-2 right-2 text-xs opacity-60">${iconGen}</div>
+                                <img src="${d.data.imageUrl}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-right: 14px;" />
+                                <div style="width:calc(100% - 70px); overflow:hidden;">
+                                    <div style="font-weight: 800; font-size: 15px; color: #1f2937; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" title="${d.data.name}">${d.data.name}</div>
+                                    <div style="font-size: 11px; color: #6b7280; margin-top: 4px; text-transform: uppercase; font-weight:600 bg-white px-2 py-0.5 rounded inline-block shadow-sm border border-gray-100">${d.data.positionName}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).render();
+            } else {
+                chart.data(chartData).render();
+                chart.expandAll();
+            }
+        }
+
+        function populateDropdowns() {
+            const parentSelect = document.getElementById('idParent');
+            parentSelect.innerHTML = '<option value="">-- Pilih --</option>';
+            familyDataCache.forEach(d => {
+                let opt = document.createElement('option');
+                opt.value = d.ID_Anggota;
+                opt.text = d.Nama + " (" + d.Hubungan + ")";
+                parentSelect.appendChild(opt);
+            });
+        }
+
+        function copyShareLink() {
+            if(!targetEmail) return Swal.fire('Oops', 'Silsilah belum dipilih.', 'info');
+            // Ganti EXEC_URL dengan URL script gas anda saat di deploy
+            const url = "https://script.google.com/macros/s/EXEC_URL/exec?email=" + targetEmail;
+            navigator.clipboard.writeText(url).then(() => {
+                Swal.fire({ title: 'Tersalin!', text: 'Link siap dibagikan. Pastikan edit EXEC_URL di kode Anda.', icon: 'success', timer: 3000 });
+            });
+        }
+
+        function submitForm(e) {
+            e.preventDefault();
+            
+            const btnSubmit = document.getElementById('btnSubmit');
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Mengirim...';
+
+            const fileInput = document.getElementById('foto');
+            let file = fileInput.files[0];
+            
+            let formData = {
+                targetOwnerEmail: targetEmail,
+                pengajuEmail: currentUser,
+                nama: document.getElementById('nama').value,
+                jenisKelamin: document.getElementById('jenisKelamin').value,
+                hubungan: document.getElementById('hubungan').value,
+                idParent: document.getElementById('idParent').value,
+                privasi: document.getElementById('privasiSilsilah').value, // public/private
+                fotoBase64: null,
+                fotoName: null
+            };
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    formData.fotoBase64 = e.target.result;
+                    formData.fotoName = file.name;
+                    sendDataToServer(formData);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                sendDataToServer(formData);
+            }
+        }
+
+        function sendDataToServer(formData) {
+            google.script.run.withSuccessHandler(function(res) {
+                closeFormModal();
+                Swal.fire({ title: res.success ? 'Berhasil!' : 'Gagal', text: res.message, icon: res.success ? 'success' : 'error' });
+                if(res.success) loadData(); // Reload data
+                document.getElementById('btnSubmit').disabled = false;
+            }).withFailureHandler(function(err){
+                Swal.fire('Error System', err.message, 'error');
+                document.getElementById('btnSubmit').disabled = false;
+            }).processFamilyData(formData);
+        }
+
+        function handleProposal(id, action) {
+            Swal.fire({
+                title: 'Konfirmasi', text: action === 'approve' ? "Setujui anggota ini masuk silsilah?" : "Tolak pengajuan ini?", icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya, Lanjutkan'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const funcName = action === 'approve' ? 'approveProposal' : 'rejectProposal';
+                    Swal.fire({title: 'Memproses...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    google.script.run.withSuccessHandler(res => {
+                        Swal.fire('Selesai', res.message, 'success');
+                        loadData();
+                        loadProposals();
+                    })[funcName](id, currentUser);
+                }
+            });
+        }
+
+        // Admin Tool: Cari / Pantau Silsilah
+        function cariSilsilahAdmin() {
+            Swal.fire({
+                title: 'Cari Silsilah Keluarga',
+                html: '<p class="text-sm text-gray-600 mb-4">Masukkan Email Pemilik Silsilah untuk melihat silsilah mereka:</p>',
+                input: 'email',
+                inputPlaceholder: 'contoh: kerabat@gmail.com',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-search"></i> Lihat',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#3b82f6'
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    targetEmail = result.value;
+                    
+                    // Re-evaluate kepemilikan
+                    isOwner = (currentUser === targetEmail) || isSuperAdmin;
+                    if(!isOwner && currentUser) {
+                        document.getElementById('roleBadge').innerText = 'Kontributor (Guest)';
+                        document.getElementById('roleBadge').className = 'font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded';
+                    } else if (isOwner && !isSuperAdmin && currentUser) {
+                        document.getElementById('roleBadge').innerText = 'Pemilik (Owner)';
+                        document.getElementById('roleBadge').className = 'font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded';
+                    }
+                    
+                    loadData();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
