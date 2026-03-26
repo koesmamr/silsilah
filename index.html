@@ -889,12 +889,10 @@
                 }); 
             }
 
-            // METODE BARU: Rumus Lebar Kotak Simetris
+            // PERBAIKAN 1: Kembalikan rumus perhitungan lebar asli agar jarak antar saudara KEMBALI RAPAT.
             const getWidth = (node) => {
                 if (node.data.id === "VIRTUAL_ROOT") return 1;
-                const spouseCount = (node.data.spouses && node.data.spouses.length > 0) ? node.data.spouses.length : 0;
-                // Lebar asli (220) + Bantalan Simetris Kiri & Kanan (240 + 240 = 480 per istri)
-                return 220 + (spouseCount * 480);
+                return 220 + (node.data.spouses ? node.data.spouses.length * 240 : 0);
             };
 
             if (!chart) {
@@ -906,7 +904,43 @@
                     .neighbourMargin((a, b) => 20) 
                     .compact(false)
                     .connections(crossMarriageConnections)
-                    // PENTING: Fungsi .linkUpdate telah dihapus seutuhnya agar D3.js menggambar garis secara alami tanpa bentrok!
+                    // PERBAIKAN 2: Modifikasi garis agar LEBIH TEBAL, HITAM, dan PRESISI
+                    .linkUpdate(function (d) {
+                        const path = d3.select(this);
+                        if (d && d.source && d.source.data.id === "VIRTUAL_ROOT") return path.attr("display", "none");
+                        
+                        path.attr("display", "block")
+                            .attr("stroke", "#111827") // Warna hitam tegas
+                            .attr("stroke-width", 3)   // Ketebalan garis ditambah
+                            .attr("fill", "none");
+                        
+                        if (d && d.source && d.target) {
+                            const sourceW = getWidth(d.source);
+                            const targetW = getWidth(d.target);
+                            
+                            const startY = d.source.y + (d.source.height || 135); 
+                            const endY = d.target.y; 
+                            
+                            // Matematika presisi: selalu menunjuk tengah kotak anak sedarah
+                            let startX = d.source.x - (sourceW / 2) + 110; 
+                            const endX = d.target.x - (targetW / 2) + 110; 
+                            
+                            if (d.target.data.secondParentId) {
+                                const spouseIdx = d.source.data.spouses.findIndex(s => s.id === d.target.data.secondParentId);
+                                if (spouseIdx !== -1) {
+                                    startX = d.source.x - (sourceW / 2) + (d.target.data.isJoint ? 230 : 350) + (spouseIdx * 240);
+                                }
+                            }
+                            
+                            const midY = startY + (endY - startY) / 2;
+                            const customPath = `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`;
+                            
+                            // TRIK DOUBLE LOCK: Tembakkan posisi presisi dan kunci setelah animasi D3 selesai
+                            path.attr("d", customPath);
+                            setTimeout(() => { path.attr("d", customPath); }, 10);
+                            setTimeout(() => { path.attr("d", customPath); }, 450); 
+                        }
+                    })
                     .nodeContent(function(d) {
                         if (d.data.id === "VIRTUAL_ROOT") return `<div style="display:none;"></div>`;
                         
@@ -959,11 +993,8 @@
                             </div>`;
                         };
 
-                        // METODE BARU: Menambahkan padding di sebelah kiri kotak saudara agar ia pas berada di tengah secara simetris
-                        const spouseCount = (d.data.spouses && d.data.spouses.length > 0) ? d.data.spouses.length : 0;
-                        const padLeft = spouseCount * 240; 
-
-                        let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%; padding-left:${padLeft}px;">`;
+                        // PERBAIKAN 3: Hapus bantalan padding-left gaib agar saudara merapat sepenuhnya
+                        let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%;">`;
                         html += renderCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl, d.data.hasParent, d.data.status, d.data.crossSpouses, d.data.isDead);
                         
                         if (d.data.spouses && d.data.spouses.length > 0) {
