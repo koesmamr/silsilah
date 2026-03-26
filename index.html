@@ -834,7 +834,17 @@
                             let actionBtns = '';
                             
                             if (currentUser && id !== "VIRTUAL_ROOT") {
-                                btnHtml = `<button onclick="event.stopPropagation(); openFormModal('${id}', '${escapedName}', null, ${hasParent})" class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-7 h-7 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-md border hover:bg-gray-100 hover:scale-110 transition z-50 cursor-pointer"><i class="fas fa-plus text-[10px]"></i></button>`;
+                                btnHtml = `<button onclick="event.stopPropagation(); openFormModal('${id}', '${escapedName}', null, ${hasParent})" class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-7 h-7 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-md border hover:bg-gray-100 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Keluarga"><i class="fas fa-plus text-[10px]"></i></button>`;
+                                
+                                // PERBAIKAN: Menampilkan icon tambah anak jika punya pasangan yang kotaknya terpisah (crossSpouses)
+                                if (crossSpouses && crossSpouses.length > 0) {
+                                    crossSpouses.forEach((sp, idx) => {
+                                        const escapedCoupleName = String((name || '') + " & " + (sp.name || '')).replace(/'/g, "\\'");
+                                        const escapedSpouseName = String(sp.name || '').replace(/'/g, "\\'");
+                                        const rightPos = 12 + (idx * 32); 
+                                        btnHtml += `<button onclick="event.stopPropagation(); openFormModal('${id},${sp.id}', '${escapedCoupleName}', 'Anak', true)" class="absolute -bottom-3 w-7 h-7 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center shadow-md border border-pink-300 hover:bg-pink-200 hover:scale-110 transition z-50 cursor-pointer" style="right: ${rightPos}px;" title="Tambah Anak bersama ${escapedSpouseName}"><i class="fas fa-child text-[10px]"></i></button>`;
+                                    });
+                                }
                             }
                             
                             if (isAdmin && id !== "VIRTUAL_ROOT") {
