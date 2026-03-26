@@ -889,13 +889,18 @@
                 }); 
             }
 
-            // Fungsi utilitas untuk mendeteksi lebar node aslinya berdasarkan logika D3 Org Chart
+            // PERBAIKAN: Rumus ajaib untuk menyelaraskan geometri D3.
+            // D3 akan mengira lebar node 2x lebih besar, sehingga D3 menggeser area node secara simetris.
+            // Kita akan memanfaatkannya dengan menambahkan ruang padding di HTML, 
+            // sehingga saudara sedarah SELALU terkunci tepat di koordinat d.x (koordinat target garis).
             const getWidth = (node) => {
                 if (node.data.id === "VIRTUAL_ROOT") return 1;
+                let totalCardWidth = 220; // Lebar saudara sedarah
                 if (node.data.spouses && node.data.spouses.length > 0) {
-                    return 220 + (node.data.spouses.length * 260);
+                    totalCardWidth += node.data.spouses.length * 260; // Ditambah lebar para pasangan
                 }
-                return 220;
+                // Jika total width=480, kita kasih tahu D3 bahwa lebarnya adalah 740.
+                return 2 * (totalCardWidth - 110);
             };
 
             if (!chart) {
@@ -912,38 +917,35 @@
                         path.attr("display", "block").attr("stroke", "#9ca3af").attr("stroke-width", 2).attr("fill", "none");
                         
                         if (d && d.source && d.target) {
-                            const sourceW = getWidth(d.source);
-                            const targetW = getWidth(d.target);
+                            let startX = d.source.x; 
+                            let endX = d.target.x; // Garis akan SELALU jatuh di d.target.x (Kepala darah daging)
+                            let needsOverride = false;
                             
-                            const startY = d.source.y + (d.source.height || 135); 
-                            const endY = d.target.y; 
-                            
-                            // MENGUNCI TITIK JALUR:
-                            // d.x adalah titik tengah absolut dari container. 
-                            // Untuk mendapatkan titik tengah kotak pertama (anak kandung), kita kurangi d.x dengan setengah lebar container, lalu ditambah 110px.
-                            let startX = d.source.x - (sourceW / 2) + 110; 
-                            const endX = d.target.x - (targetW / 2) + 110; 
-                            
+                            // Logika khusus untuk garis KELUAR (Anak kandung bersama)
+                            // Jika ini anak hasil pasangan, garis akan dimulai dari lambang Hati.
                             if (d.target.data.secondParentId) {
                                 const spouseIdx = d.source.data.spouses.findIndex(s => s.id === d.target.data.secondParentId);
                                 if (spouseIdx !== -1) {
-                                    // Jika target adalah anak hasil pernikahan/pasangan, geser titik mulai (startX) ke lokasi pasangan tersebut
-                                    const offset = d.target.data.isJoint ? 240 : 370;
-                                    startX = d.source.x - (sourceW / 2) + offset + (spouseIdx * 260);
+                                    startX = d.source.x + 130 + (spouseIdx * 260); // Posisi ikon hati
+                                    needsOverride = true;
                                 }
                             }
                             
-                            const midY = startY + (endY - startY) / 2;
-                            const customPath = `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`;
-                            
-                            // 1. Hentikan (interrupt) animasi bawaan D3 yang berjalan dan paksa pasang animasi kita
-                            path.interrupt().transition().duration(400).attr("d", customPath);
-                            
-                            // 2. Failsafe (Pengaman): Timpa ulang secara instan setelah animasi selesai 
-                            // agar D3 tidak bisa menimpanya kembali ke posisi tengah.
-                            setTimeout(() => {
-                                path.attr("d", customPath);
-                            }, 450);
+                            // Jika garis keluar bukan dari kepala langsung, kita timpa SVG-nya secara paksa.
+                            if (needsOverride) {
+                                const startY = d.source.y + (d.source.height || 135); 
+                                const endY = d.target.y; 
+                                const midY = startY + (endY - startY) / 2;
+                                const customPath = `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`;
+                                
+                                // Pengaman ekstra kuat: menggunakan loop kilat untuk melawan sistem overwrite dari D3
+                                let startT = performance.now();
+                                const forcePath = (t) => {
+                                    path.attr("d", customPath);
+                                    if (t - startT < 500) requestAnimationFrame(forcePath);
+                                };
+                                requestAnimationFrame(forcePath);
+                            }
                         }
                     })
                     .nodeContent(function(d) {
@@ -998,7 +1000,11 @@
                             </div>`;
                         };
 
-                        let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%;">`;
+                        const totalW = getWidth(d);
+                        // Bantalan tak terlihat di sebelah kiri kotak
+                        const padLeft = (totalW / 2) - 110; 
+
+                        let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%; padding-left:${padLeft}px;">`;
                         html += renderCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl, d.data.hasParent, d.data.status, d.data.crossSpouses, d.data.isDead);
                         
                         if (d.data.spouses && d.data.spouses.length > 0) {
