@@ -889,63 +889,24 @@
                 }); 
             }
 
-            // PERBAIKAN 1: Hapus trik lebar palsu, gunakan lebar asli yang padat.
+            // METODE BARU: Rumus Lebar Kotak Simetris
             const getWidth = (node) => {
                 if (node.data.id === "VIRTUAL_ROOT") return 1;
-                let totalCardWidth = 220; // Lebar saudara sedarah
-                if (node.data.spouses && node.data.spouses.length > 0) {
-                    totalCardWidth += node.data.spouses.length * 240; // Ditambah lebar para pasangan
-                }
-                return totalCardWidth;
+                const spouseCount = (node.data.spouses && node.data.spouses.length > 0) ? node.data.spouses.length : 0;
+                // Lebar asli (220) + Bantalan Simetris Kiri & Kanan (240 + 240 = 480 per istri)
+                return 220 + (spouseCount * 480);
             };
 
             if (!chart) {
                 chart = new d3.OrgChart().container('.chart-container').data(chartData)
                     .nodeWidth(d => getWidth(d))
                     .initialZoom(0.8).nodeHeight(d => d.data.id === "VIRTUAL_ROOT" ? 1 : 135)
-                    .childrenMargin(d => 50) // Jarak vertikal dipersempit
-                    .siblingsMargin(d => 15) // Jarak horizontal antar saudara dipersempit
-                    .neighbourMargin((a, b) => 20) // PERBAIKAN: Menggunakan ejaan 'neighbourMargin' (pakai u)
+                    .childrenMargin(d => 50) 
+                    .siblingsMargin(d => 15) 
+                    .neighbourMargin((a, b) => 20) 
                     .compact(false)
                     .connections(crossMarriageConnections)
-                    .linkUpdate(function (d) {
-                        const path = d3.select(this);
-                        if (d && d.source && d.source.data.id === "VIRTUAL_ROOT") return path.attr("display", "none");
-                        
-                        path.attr("display", "block").attr("stroke", "#9ca3af").attr("stroke-width", 2).attr("fill", "none");
-                        
-                        if (d && d.source && d.target) {
-                            const sourceW = getWidth(d.source);
-                            const targetW = getWidth(d.target);
-                            
-                            const startY = d.source.y + (d.source.height || 135); 
-                            const endY = d.target.y; 
-                            
-                            let startX = d.source.x - (sourceW / 2) + 110; 
-                            const endX = d.target.x - (targetW / 2) + 110; 
-                            
-                            if (d.target.data.secondParentId) {
-                                const spouseIdx = d.source.data.spouses.findIndex(s => s.id === d.target.data.secondParentId);
-                                if (spouseIdx !== -1) {
-                                    const offset = d.target.data.isJoint ? 230 : 350;
-                                    startX = d.source.x - (sourceW / 2) + offset + (spouseIdx * 240);
-                                }
-                            }
-                            
-                            const midY = startY + (endY - startY) / 2;
-                            const customPath = `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`;
-                            
-                            // PERBAIKAN: Mengunci paksa jalur garis selama animasi render D3 berlangsung
-                            // agar D3 tidak bisa menimpa ulang garis ke titik tengah saat saudara menikah
-                            let startT = performance.now();
-                            const forcePath = (t) => {
-                                path.attr("d", customPath);
-                                // Tahan garis ini secara presisi selama 600 milidetik (sampai animasi D3 selesai)
-                                if (t - startT < 600) requestAnimationFrame(forcePath);
-                            };
-                            requestAnimationFrame(forcePath);
-                        }
-                    })
+                    // PENTING: Fungsi .linkUpdate telah dihapus seutuhnya agar D3.js menggambar garis secara alami tanpa bentrok!
                     .nodeContent(function(d) {
                         if (d.data.id === "VIRTUAL_ROOT") return `<div style="display:none;"></div>`;
                         
@@ -998,15 +959,17 @@
                             </div>`;
                         };
 
-                        // PERBAIKAN 2: Hapus bantalan (padding-left) kosong penyebab jarak jauh.
-                        let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%;">`;
+                        // METODE BARU: Menambahkan padding di sebelah kiri kotak saudara agar ia pas berada di tengah secara simetris
+                        const spouseCount = (d.data.spouses && d.data.spouses.length > 0) ? d.data.spouses.length : 0;
+                        const padLeft = spouseCount * 240; 
+
+                        let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%; padding-left:${padLeft}px;">`;
                         html += renderCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl, d.data.hasParent, d.data.status, d.data.crossSpouses, d.data.isDead);
                         
                         if (d.data.spouses && d.data.spouses.length > 0) {
                             d.data.spouses.forEach(sp => {
                                 let childBtnHtml = currentUser ? `<button onclick="event.stopPropagation(); openFormModal('${d.data.id},${sp.id}', 'Anak Bersama', 'Anak', true)" class="absolute top-3 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 z-50 cursor-pointer"><i class="fas fa-child text-[10px]"></i></button>` : '';
                                 
-                                // Lebar garis konektor dikecilkan dari 40px menjadi 20px
                                 html += `<div style="width:20px; height:4px; background-color:#cbd5e1; position:relative; z-index:0; flex-shrink:0; margin-top:10px;">
                                             <div style="position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:white; border-radius:50%; padding:2px; border:2px solid #cbd5e1; z-index:1;"><i class="fas fa-heart text-pink-500 text-[10px]"></i></div>
                                             ${childBtnHtml}
