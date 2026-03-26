@@ -810,7 +810,10 @@
                             
                             const endX = d.target.x + 110; 
                             const midY = startY + (endY - startY) / 2;
-                            path.attr("d", `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`);
+                            const customPath = `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`;
+                            
+                            // PERBAIKAN: Gunakan .transition() untuk mencegah D3 menimpa ulang garis ke titik tengah
+                            path.transition().duration(400).attr("d", customPath);
                         }
                     })
                     .nodeContent(function(d) {
