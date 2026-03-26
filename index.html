@@ -927,7 +927,6 @@
                             if (d.target.data.secondParentId) {
                                 const spouseIdx = d.source.data.spouses.findIndex(s => s.id === d.target.data.secondParentId);
                                 if (spouseIdx !== -1) {
-                                    // Disesuaikan dengan lebar jarak pasangan yang baru
                                     const offset = d.target.data.isJoint ? 230 : 350;
                                     startX = d.source.x - (sourceW / 2) + offset + (spouseIdx * 240);
                                 }
@@ -936,7 +935,15 @@
                             const midY = startY + (endY - startY) / 2;
                             const customPath = `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`;
                             
-                            path.transition().duration(400).attr("d", customPath);
+                            // PERBAIKAN: Mengunci paksa jalur garis selama animasi render D3 berlangsung
+                            // agar D3 tidak bisa menimpa ulang garis ke titik tengah saat saudara menikah
+                            let startT = performance.now();
+                            const forcePath = (t) => {
+                                path.attr("d", customPath);
+                                // Tahan garis ini secara presisi selama 600 milidetik (sampai animasi D3 selesai)
+                                if (t - startT < 600) requestAnimationFrame(forcePath);
+                            };
+                            requestAnimationFrame(forcePath);
                         }
                     })
                     .nodeContent(function(d) {
