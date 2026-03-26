@@ -9,9 +9,7 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.1.2/build/d3-flextree.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-org-chart@3.0.1"></script>
-    <!-- Library untuk Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
@@ -100,6 +98,10 @@
 
                 <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
                     <h3 class="text-sm font-bold text-gray-700 border-b pb-2 mb-3"><i class="fas fa-map-marker-alt text-red-500 mr-2"></i> Alamat & Kontak</h3>
+                    <div class="grid grid-cols-3 gap-2 text-sm mb-3">
+                        <div class="text-gray-500"><i class="fas fa-phone text-green-500 mr-1"></i> No. HP</div>
+                        <div class="col-span-2 font-bold text-gray-800" id="drawerNoHp">-</div>
+                    </div>
                     <p id="drawerAlamat" class="text-sm text-gray-600 italic whitespace-pre-wrap">Belum ada data alamat.</p>
                 </div>
 
@@ -271,9 +273,15 @@
                                 </div>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">Alamat Tinggal</label>
-                                <textarea id="alamat" rows="2" class="block w-full rounded-lg border-gray-300 shadow-sm p-2.5 border"></textarea>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">Alamat Tinggal</label>
+                                    <textarea id="alamat" rows="2" class="block w-full rounded-lg border-gray-300 shadow-sm p-2.5 border"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">Nomor HP / WhatsApp</label>
+                                    <input type="tel" id="nomorHp" placeholder="Contoh: 081234567890" class="block w-full rounded-lg border-gray-300 shadow-sm p-2.5 border">
+                                </div>
                             </div>
 
                             <div>
@@ -795,7 +803,6 @@
             const mappedNodes = new Map();
             data.forEach(d => {
                 const parents = String(d.ID_Parent || "").split(',');
-                // Fix issue with invalid Data URIs causing broken images. Fallback to ui-avatars.
                 let imageUrl = d.URL_Foto;
                 if (!imageUrl || imageUrl.trim() === "") {
                     imageUrl = "https://ui-avatars.com/api/?name=" + encodeURIComponent(d.Nama || "TN") + "&background=random";
@@ -950,7 +957,6 @@
                                 </div>`;
                             }
 
-                            // Added onerror to fallback to UI avatar if base64 loading fails
                             const fallbackImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'TN')}&background=random`;
 
                             return `
@@ -1018,7 +1024,6 @@
             document.getElementById('drawerName').innerText = person.Nama || "Tanpa Nama";
             document.getElementById('drawerPosition').innerText = person.HubunganDinamis || person.Hubungan || "Kerabat";
             
-            // Check if valid URL or fallback to UI avatar
             let imgUrl = person.URL_Foto;
             if (!imgUrl || imgUrl.trim() === "") {
                 imgUrl = "https://ui-avatars.com/api/?name=" + encodeURIComponent(person.Nama || "TN");
@@ -1047,6 +1052,7 @@
             }
 
             document.getElementById('drawerPekerjaan').innerText = person.Pekerjaan || "-";
+            document.getElementById('drawerNoHp').innerText = person.Nomor_HP || "-"; // Tampilkan Nomor HP
             document.getElementById('drawerAlamat').innerText = person.Alamat || "Belum ada data alamat.";
             document.getElementById('drawerCatatan').innerText = person.Catatan || "Belum ada catatan biografi.";
 
@@ -1267,6 +1273,7 @@
             document.getElementById('tanggalLahir').value = formatForInput(person.Tanggal_Lahir);
             document.getElementById('tanggalWafat').value = formatForInput(person.Tanggal_Wafat);
             document.getElementById('pekerjaan').value = person.Pekerjaan || "";
+            document.getElementById('nomorHp').value = person.Nomor_HP || ""; // Set form No HP saat mode edit
             document.getElementById('alamat').value = person.Alamat || "";
             document.getElementById('catatan').value = person.Catatan || "";
 
@@ -1303,6 +1310,7 @@
                 tanggalWafat: document.getElementById('tanggalWafat').value, 
                 pekerjaan: document.getElementById('pekerjaan').value,
                 alamat: document.getElementById('alamat').value, 
+                nomorHp: document.getElementById('nomorHp').value, // Menampung Nomor HP dari Form
                 catatan: document.getElementById('catatan').value,
                 fotoBase64: null, 
                 fotoName: null
@@ -1320,12 +1328,11 @@
                     img.src = event.target.result;
                     img.onload = function() {
                         const canvas = document.createElement('canvas'); 
-                        const MAX_DIM = 200; // Batas dimensi maksimal & resolusi agar base64 ringan (kurang dari 10KB)
+                        const MAX_DIM = 200; 
                         
                         let width = img.width; 
                         let height = img.height;
                         
-                        // Menentukan ukuran crop persegi 1:1 otomatis dari tengah foto
                         let minDim = Math.min(width, height);
                         let startX = (width - minDim) / 2;
                         let startY = (height - minDim) / 2;
@@ -1334,10 +1341,8 @@
                         canvas.height = MAX_DIM; 
                         
                         const ctx = canvas.getContext('2d'); 
-                        // Memotong dan mengecilkan skala gambar langsung ke format 200x200
                         ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, MAX_DIM, MAX_DIM);
                         
-                        // Konversi ke JPEG Base64 dengan kualitas 60%
                         formData.fotoBase64 = canvas.toDataURL('image/jpeg', 0.6); 
                         formData.fotoName = file.name;
                         
