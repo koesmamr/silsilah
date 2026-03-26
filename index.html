@@ -936,8 +936,14 @@
                             const midY = startY + (endY - startY) / 2;
                             const customPath = `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`;
                             
-                            // Terapkan animasi untuk mengganti path bawaan D3
-                            path.transition().duration(400).attr("d", customPath);
+                            // 1. Hentikan (interrupt) animasi bawaan D3 yang berjalan dan paksa pasang animasi kita
+                            path.interrupt().transition().duration(400).attr("d", customPath);
+                            
+                            // 2. Failsafe (Pengaman): Timpa ulang secara instan setelah animasi selesai 
+                            // agar D3 tidak bisa menimpanya kembali ke posisi tengah.
+                            setTimeout(() => {
+                                path.attr("d", customPath);
+                            }, 450);
                         }
                     })
                     .nodeContent(function(d) {
