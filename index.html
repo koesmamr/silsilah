@@ -909,7 +909,7 @@
                     .initialZoom(0.8).nodeHeight(d => d.data.id === "VIRTUAL_ROOT" ? 1 : 135)
                     .childrenMargin(d => 50) // Jarak vertikal dipersempit
                     .siblingsMargin(d => 15) // Jarak horizontal antar saudara dipersempit
-                    .neighborsMargin((n1, n2) => 20) // Jarak horizontal antar sepupu/keluarga dipersempit
+                    .neighbourMargin((a, b) => 20) // PERBAIKAN: Menggunakan ejaan 'neighbourMargin' (pakai u)
                     .compact(false)
                     .connections(crossMarriageConnections)
                     .linkUpdate(function (d) {
