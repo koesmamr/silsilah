@@ -889,18 +889,14 @@
                 }); 
             }
 
-            // PERBAIKAN: Rumus ajaib untuk menyelaraskan geometri D3.
-            // D3 akan mengira lebar node 2x lebih besar, sehingga D3 menggeser area node secara simetris.
-            // Kita akan memanfaatkannya dengan menambahkan ruang padding di HTML, 
-            // sehingga saudara sedarah SELALU terkunci tepat di koordinat d.x (koordinat target garis).
+            // PERBAIKAN 1: Hapus trik lebar palsu, gunakan lebar asli yang padat.
             const getWidth = (node) => {
                 if (node.data.id === "VIRTUAL_ROOT") return 1;
                 let totalCardWidth = 220; // Lebar saudara sedarah
                 if (node.data.spouses && node.data.spouses.length > 0) {
-                    totalCardWidth += node.data.spouses.length * 240; // Jarak dikurangi (220 + 20 margin connector)
+                    totalCardWidth += node.data.spouses.length * 240; // Ditambah lebar para pasangan
                 }
-                // Jika total width=480, kita kasih tahu D3 bahwa lebarnya adalah 740.
-                return 2 * (totalCardWidth - 110);
+                return totalCardWidth;
             };
 
             if (!chart) {
@@ -995,11 +991,8 @@
                             </div>`;
                         };
 
-                        const totalW = getWidth(d);
-                        // Bantalan tak terlihat di sebelah kiri kotak
-                        const padLeft = (totalW / 2) - 110; 
-
-                        let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%; padding-left:${padLeft}px;">`;
+                        // PERBAIKAN 2: Hapus bantalan (padding-left) kosong penyebab jarak jauh.
+                        let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%;">`;
                         html += renderCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl, d.data.hasParent, d.data.status, d.data.crossSpouses, d.data.isDead);
                         
                         if (d.data.spouses && d.data.spouses.length > 0) {
