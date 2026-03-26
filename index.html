@@ -1262,7 +1262,8 @@
             
             document.getElementById('nama').value = person.Nama || "";
             document.getElementById('jenisKelamin').value = person.Jenis_Kelamin;
-            document.getElementById('jenisKelamin').disabled = true; 
+            // Kunci gender dinonaktifkan agar bisa diedit
+            document.getElementById('jenisKelamin').disabled = false; 
             
             const formatForInput = (str) => { 
                 if(!str) return ""; 
