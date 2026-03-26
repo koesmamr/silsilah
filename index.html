@@ -854,7 +854,8 @@
                             </div>`;
                         };
 
-                        let html = `<div style="display:flex; justify-content:center; align-items:center; width:100%; height:100%;">`;
+                        // PERBAIKAN: Ubah justify-content menjadi flex-start dan width menjadi max-content
+                        let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%;">`;
                         html += renderCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl, d.data.hasParent, d.data.status, d.data.crossSpouses, d.data.isDead);
                         
                         if (d.data.spouses && d.data.spouses.length > 0) {
