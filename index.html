@@ -28,7 +28,6 @@
         .animate-blob { animation: blob 7s infinite; }
         .animation-delay-2000 { animation-delay: 2s; }
         @keyframes blob { 0%, 100% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } }
-        /* Hilangkan scrollbar panel samping tapi bisa di scroll */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -53,7 +52,13 @@
     <div id="adminListModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center z-[100] backdrop-blur-sm p-4">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative border border-gray-100">
             <button onclick="closeAdminListModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition"><i class="fas fa-times text-xl"></i></button>
-            <h2 class="text-2xl font-bold mb-4 text-gray-900 flex items-center"><i class="fa-solid fa-crown text-purple-600 mr-3"></i> Daftar Silsilah Sistem</h2>
+            
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-900 flex items-center"><i class="fa-solid fa-crown text-purple-600 mr-3"></i> Daftar Silsilah</h2>
+                <!-- Tombol Buat Silsilah untuk Super Admin -->
+                <button onclick="createTreeAdminPrompt()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition"><i class="fas fa-plus mr-1"></i> Buat Silsilah (Orang Lain)</button>
+            </div>
+
             <div class="overflow-y-auto flex-1 border rounded-lg">
                 <table class="min-w-full text-left text-sm whitespace-nowrap">
                     <thead class="uppercase tracking-wider border-b-2 border-gray-200 bg-gray-50 sticky top-0 z-10">
@@ -155,6 +160,9 @@
                 <button onclick="exportBaganPdf()" class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-semibold shadow-sm transition"><i class="fas fa-file-pdf text-red-500 mr-1"></i> Unduh PDF</button>
                 <button onclick="exportDataGedcom()" class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-semibold shadow-sm transition"><i class="fas fa-sitemap text-green-500 mr-1"></i> Export GEDCOM</button>
                 <button onclick="handleTopAddButton()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md font-medium transition"><i class="fa-solid fa-plus mr-1"></i> Info Tambah</button>
+                
+                <!-- Tombol Hapus Silsilah -->
+                <button id="btnDeleteTree" onclick="deleteTreePrompt()" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow-md font-medium transition"><i class="fas fa-trash-alt mr-1"></i> Hapus Silsilah</button>
             </div>
         </div>
 
@@ -189,7 +197,7 @@
             <div class="p-6 overflow-y-auto flex-1 no-scrollbar">
                 <form id="familyForm" onsubmit="submitForm(event)">
                     <!-- Mode Action (Hidden) -->
-                    <input type="hidden" id="formMode" value="add"> <!-- 'add' atau 'edit' -->
+                    <input type="hidden" id="formMode" value="add">
                     <input type="hidden" id="editNodeId" value="">
 
                     <div class="space-y-5">
@@ -370,6 +378,7 @@
         function evaluateRole(fetchedAdmins = [], fetchedOwner = "") {
             let roleBadgeObj = document.getElementById('roleBadge'); 
             let btnManageAdmin = document.getElementById('btnManageAdmin');
+            let btnDeleteTree = document.getElementById('btnDeleteTree');
             
             if (!currentUser) {
                 isAdmin = false; 
@@ -379,6 +388,7 @@
                     roleBadgeObj.className = 'font-semibold text-gray-500 bg-gray-200 px-2 py-0.5 rounded shadow-sm'; 
                 }
                 if(btnManageAdmin) btnManageAdmin.classList.add('hidden');
+                if(btnDeleteTree) btnDeleteTree.classList.add('hidden');
                 return;
             }
             
@@ -388,6 +398,12 @@
             if(btnManageAdmin) { 
                 if(isStrictOwner || isSuperAdmin) btnManageAdmin.classList.remove('hidden'); 
                 else btnManageAdmin.classList.add('hidden'); 
+            }
+
+            // Tampilkan tombol Hapus Silsilah hanya untuk Owner atau Super Admin
+            if(btnDeleteTree) {
+                if(isStrictOwner || isSuperAdmin) btnDeleteTree.classList.remove('hidden');
+                else btnDeleteTree.classList.add('hidden');
             }
             
             if (roleBadgeObj) {
@@ -537,7 +553,7 @@
         }
 
         // ==========================================
-        // ADMIN MANAGEMENT (RESTORED FUNCTIONS)
+        // ADMIN MANAGEMENT & DELETE TREE
         // ==========================================
         function lihatDaftarSilsilah() {
             Swal.fire({title: 'Memuat Daftar...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
@@ -596,6 +612,84 @@
                         if(res.success) { 
                             Swal.fire('Berhasil', res.message, 'success'); 
                             loadData(); 
+                        } else {
+                            Swal.fire('Gagal', res.message, 'error');
+                        }
+                    }).catch(err => Swal.fire('Error', err.message, 'error'));
+                }
+            });
+        }
+
+        // Fitur Hapus Keseluruhan Pohon
+        function deleteTreePrompt() {
+            Swal.fire({
+                title: 'HAPUS SILSILAH?',
+                html: `<div class="text-red-600 font-bold mb-2">PERINGATAN KERAS!</div><p class="text-sm text-gray-600">Anda akan <b>menghapus seluruh silsilah keluarga</b> ini secara permanen. Semua data anggota, foto, dan relasi akan hilang dan tidak dapat dikembalikan.</p><br/><p class="text-sm text-gray-800">Ketik <b>HAPUS</b> di bawah ini untuk mengonfirmasi:</p>`,
+                input: 'text',
+                inputPlaceholder: 'Ketik HAPUS disini',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Ya, Hapus Silsilah!',
+                cancelButtonText: 'Batal',
+                preConfirm: (inputValue) => {
+                    if (inputValue !== 'HAPUS') {
+                        Swal.showValidationMessage('Anda harus mengetik HAPUS dengan huruf besar!');
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'Menghapus Silsilah...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    apiCall({ action: 'deleteTree', treeId: currentTreeId, userEmail: currentUser })
+                    .then(res => {
+                        if(res.success) { 
+                            Swal.fire('Terhapus!', res.message, 'success').then(() => { kembaliKeBeranda(); }); 
+                        } else {
+                            Swal.fire('Gagal', res.message, 'error');
+                        }
+                    }).catch(err => Swal.fire('Error', err.message, 'error'));
+                }
+            });
+        }
+
+        // Fitur Super Admin Membuat Silsilah untuk Target Email Lain
+        function createTreeAdminPrompt() {
+            Swal.fire({
+                title: 'Buat Silsilah Baru',
+                html: `
+                    <div class="space-y-3 text-left">
+                        <p class="text-sm text-gray-600">Masukkan data pemilik baru. Sistem akan membuatkan ID dan menetapkan email tersebut sebagai pemilik utama.</p>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700">Email Target</label>
+                            <input type="email" id="swal-targetEmail" class="swal2-input !m-0 !w-full" placeholder="email_target@gmail.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700">Nama Lengkap Pemilik</label>
+                            <input type="text" id="swal-targetName" class="swal2-input !m-0 !w-full" placeholder="Nama Lengkap">
+                        </div>
+                    </div>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Buat Silsilah',
+                preConfirm: () => {
+                    const email = document.getElementById('swal-targetEmail').value;
+                    const name = document.getElementById('swal-targetName').value;
+                    if (!email || !name) {
+                        Swal.showValidationMessage('Email dan Nama tidak boleh kosong!');
+                    }
+                    return { email: email, name: name };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'Mendaftarkan Silsilah...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    apiCall({ action: 'createTreeForOther', targetEmail: result.value.email, targetName: result.value.name, userEmail: currentUser })
+                    .then(res => {
+                        if(res.success) { 
+                            Swal.fire('Berhasil!', res.message, 'success').then(() => { 
+                                lihatDaftarSilsilah(); // Refresh tabel
+                            }); 
                         } else {
                             Swal.fire('Gagal', res.message, 'error');
                         }
@@ -812,7 +906,6 @@
                             const midY = startY + (endY - startY) / 2;
                             const customPath = `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`;
                             
-                            // PERBAIKAN: Gunakan .transition() untuk mencegah D3 menimpa ulang garis ke titik tengah
                             path.transition().duration(400).attr("d", customPath);
                         }
                     })
@@ -836,7 +929,6 @@
                             if (currentUser && id !== "VIRTUAL_ROOT") {
                                 btnHtml = `<button onclick="event.stopPropagation(); openFormModal('${id}', '${escapedName}', null, ${hasParent})" class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-7 h-7 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-md border hover:bg-gray-100 hover:scale-110 transition z-50 cursor-pointer" title="Tambah Keluarga"><i class="fas fa-plus text-[10px]"></i></button>`;
                                 
-                                // PERBAIKAN: Menampilkan icon tambah anak jika punya pasangan yang kotaknya terpisah (crossSpouses)
                                 if (crossSpouses && crossSpouses.length > 0) {
                                     crossSpouses.forEach((sp, idx) => {
                                         const escapedCoupleName = String((name || '') + " & " + (sp.name || '')).replace(/'/g, "\\'");
@@ -851,7 +943,7 @@
                                 actionBtns = `
                                 <div class="absolute top-2 left-2 flex gap-1 z-50">
                                     <button onclick="event.stopPropagation(); openEditModal('${id}')" class="w-6 h-6 bg-white text-gray-500 rounded-md flex justify-center items-center shadow-sm border hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer" title="Edit Biodata"><i class="fas fa-edit text-[10px]"></i></button>
-                                    <button onclick="event.stopPropagation(); deleteNodePrompt('${id}', '${escapedName}')" class="w-6 h-6 bg-white text-gray-500 rounded-md flex justify-center items-center shadow-sm border hover:text-red-600 hover:bg-red-50 transition cursor-pointer" title="Hapus"><i class="fas fa-trash text-[10px]"></i></button>
+                                    <button onclick="event.stopPropagation(); deleteNodePrompt('${id}', '${escapedName}')" class="w-6 h-6 bg-white text-gray-500 rounded-md flex justify-center items-center shadow-sm border hover:text-red-600 hover:bg-red-50 transition cursor-pointer" title="Hapus Anggota"><i class="fas fa-trash text-[10px]"></i></button>
                                 </div>`;
                             }
 
@@ -867,7 +959,6 @@
                             </div>`;
                         };
 
-                        // PERBAIKAN: Ubah justify-content menjadi flex-start dan width menjadi max-content
                         let html = `<div style="display:flex; justify-content:flex-start; align-items:center; width:max-content; height:100%;">`;
                         html += renderCard(d.data.id, d.data.name, d.data.positionName, d.data.gender, d.data.imageUrl, d.data.hasParent, d.data.status, d.data.crossSpouses, d.data.isDead);
                         
