@@ -889,9 +889,18 @@
                 }); 
             }
 
+            // Fungsi utilitas untuk mendeteksi lebar node aslinya berdasarkan logika D3 Org Chart
+            const getWidth = (node) => {
+                if (node.data.id === "VIRTUAL_ROOT") return 1;
+                if (node.data.spouses && node.data.spouses.length > 0) {
+                    return 220 + (node.data.spouses.length * 260);
+                }
+                return 220;
+            };
+
             if (!chart) {
                 chart = new d3.OrgChart().container('.chart-container').data(chartData)
-                    .nodeWidth(d => d.data.id === "VIRTUAL_ROOT" ? 1 : ((d.data.spouses && d.data.spouses.length > 0) ? 220 + (d.data.spouses.length * 260) : 220))
+                    .nodeWidth(d => getWidth(d))
                     .initialZoom(0.8).nodeHeight(d => d.data.id === "VIRTUAL_ROOT" ? 1 : 135)
                     .childrenMargin(d => 60)
                     .compact(false)
@@ -903,19 +912,31 @@
                         path.attr("display", "block").attr("stroke", "#9ca3af").attr("stroke-width", 2).attr("fill", "none");
                         
                         if (d && d.source && d.target) {
+                            const sourceW = getWidth(d.source);
+                            const targetW = getWidth(d.target);
+                            
                             const startY = d.source.y + (d.source.height || 135); 
                             const endY = d.target.y; 
-                            let startX = d.source.x + 110; 
+                            
+                            // MENGUNCI TITIK JALUR:
+                            // d.x adalah titik tengah absolut dari container. 
+                            // Untuk mendapatkan titik tengah kotak pertama (anak kandung), kita kurangi d.x dengan setengah lebar container, lalu ditambah 110px.
+                            let startX = d.source.x - (sourceW / 2) + 110; 
+                            const endX = d.target.x - (targetW / 2) + 110; 
                             
                             if (d.target.data.secondParentId) {
                                 const spouseIdx = d.source.data.spouses.findIndex(s => s.id === d.target.data.secondParentId);
-                                if (spouseIdx !== -1) startX = d.source.x + (d.target.data.isJoint ? 240 : 370) + (spouseIdx * 260);
+                                if (spouseIdx !== -1) {
+                                    // Jika target adalah anak hasil pernikahan/pasangan, geser titik mulai (startX) ke lokasi pasangan tersebut
+                                    const offset = d.target.data.isJoint ? 240 : 370;
+                                    startX = d.source.x - (sourceW / 2) + offset + (spouseIdx * 260);
+                                }
                             }
                             
-                            const endX = d.target.x + 110; 
                             const midY = startY + (endY - startY) / 2;
                             const customPath = `M ${startX},${startY} C ${startX},${midY} ${endX},${midY} ${endX},${endY}`;
                             
+                            // Terapkan animasi untuk mengganti path bawaan D3
                             path.transition().duration(400).attr("d", customPath);
                         }
                     })
@@ -1052,7 +1073,7 @@
             }
 
             document.getElementById('drawerPekerjaan').innerText = person.Pekerjaan || "-";
-            document.getElementById('drawerNoHp').innerText = person.Nomor_HP || "-"; // Tampilkan Nomor HP
+            document.getElementById('drawerNoHp').innerText = person.Nomor_HP || "-"; 
             document.getElementById('drawerAlamat').innerText = person.Alamat || "Belum ada data alamat.";
             document.getElementById('drawerCatatan').innerText = person.Catatan || "Belum ada catatan biografi.";
 
@@ -1262,7 +1283,6 @@
             
             document.getElementById('nama').value = person.Nama || "";
             document.getElementById('jenisKelamin').value = person.Jenis_Kelamin;
-            // Kunci gender dinonaktifkan agar bisa diedit
             document.getElementById('jenisKelamin').disabled = false; 
             
             const formatForInput = (str) => { 
@@ -1274,7 +1294,7 @@
             document.getElementById('tanggalLahir').value = formatForInput(person.Tanggal_Lahir);
             document.getElementById('tanggalWafat').value = formatForInput(person.Tanggal_Wafat);
             document.getElementById('pekerjaan').value = person.Pekerjaan || "";
-            document.getElementById('nomorHp').value = person.Nomor_HP || ""; // Set form No HP saat mode edit
+            document.getElementById('nomorHp').value = person.Nomor_HP || ""; 
             document.getElementById('alamat').value = person.Alamat || "";
             document.getElementById('catatan').value = person.Catatan || "";
 
@@ -1311,7 +1331,7 @@
                 tanggalWafat: document.getElementById('tanggalWafat').value, 
                 pekerjaan: document.getElementById('pekerjaan').value,
                 alamat: document.getElementById('alamat').value, 
-                nomorHp: document.getElementById('nomorHp').value, // Menampung Nomor HP dari Form
+                nomorHp: document.getElementById('nomorHp').value,
                 catatan: document.getElementById('catatan').value,
                 fotoBase64: null, 
                 fotoName: null
